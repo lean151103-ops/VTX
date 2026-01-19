@@ -37,10 +37,9 @@ module uart_rx
         case (state)
             IDLE_STATE:
             begin   
-                data_avail <= 0;
                 counter <= 0;
                 bit_index <= 0;
-                if (rx == 1)
+                if (rx == 0)
                     state <= START_STATE;
                 else 
                     state <= IDLE_STATE;
@@ -107,4 +106,3 @@ module uart_rx
         endcase
     end
 endmodule
-
