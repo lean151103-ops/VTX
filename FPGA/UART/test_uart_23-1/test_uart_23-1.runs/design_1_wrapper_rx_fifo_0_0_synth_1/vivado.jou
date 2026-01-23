@@ -1,0 +1,13 @@
+#-----------------------------------------------------------
+# Vivado v2022.2 (64-bit)
+# SW Build 3671981 on Fri Oct 14 05:00:03 MDT 2022
+# IP Build 3669848 on Fri Oct 14 08:30:02 MDT 2022
+# Start of session at: Fri Jan 23 12:07:57 2026
+# Process ID: 6704
+# Current directory: D:/Xilinx/Xlinx_project/test_uart_23-1/test_uart_23-1.runs/design_1_wrapper_rx_fifo_0_0_synth_1
+# Command line: vivado.exe -log design_1_wrapper_rx_fifo_0_0.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source design_1_wrapper_rx_fifo_0_0.tcl
+# Log file: D:/Xilinx/Xlinx_project/test_uart_23-1/test_uart_23-1.runs/design_1_wrapper_rx_fifo_0_0_synth_1/design_1_wrapper_rx_fifo_0_0.vds
+# Journal file: D:/Xilinx/Xlinx_project/test_uart_23-1/test_uart_23-1.runs/design_1_wrapper_rx_fifo_0_0_synth_1\vivado.jou
+# Running On: DESKTOP-518F4EG, OS: Windows, CPU Frequency: 3793 MHz, CPU Physical cores: 16, Host memory: 16438 MB
+#-----------------------------------------------------------
+source design_1_wrapper_rx_fifo_0_0.tcl -notrace
