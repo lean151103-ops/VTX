@@ -3,20 +3,25 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:s="http://schemas.abtsoftware.co.uk/scichart"
         Title="Telemetry Dashboard"
-        Height="900"
-        Width="1400"
+        Width="1280"
+        Height="828" 
         Background="#1F2733"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        >
 
     <Grid Background="#1F2733">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="759*"/>
+            <RowDefinition Height="5*"/>
+        </Grid.RowDefinitions>
         <ScrollViewer VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
+                      HorizontalScrollBarVisibility="Disabled" Grid.RowSpan="2">
             <Grid Margin="14">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="170"/>
-                    <RowDefinition Height="170"/>
-                    <RowDefinition Height="170"/>
+                    <RowDefinition Height="160"/>
+                    <RowDefinition Height="160"/>
+                    <RowDefinition Height="160"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
@@ -27,7 +32,7 @@
                         BorderThickness="1"
                         CornerRadius="8"
                         Padding="14"
-                        Margin="0,0,0,14">
+                        Margin="0,0,0,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -207,12 +212,12 @@
 
                 <!-- IMT -->
                 <Border Grid.Row="3"
-                        Background="#273240"
-                        BorderBrush="#374252"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="10"
-                        Margin="0,0,0,370" Grid.RowSpan="2">
+                Background="#273240"
+                BorderBrush="#374252"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="10"
+                Margin="0,0,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -234,7 +239,7 @@
                             </StackPanel>
                         </DockPanel>
 
-                        <s:SciChartSurface Grid.Row="1" Background="#25303D" Height="145" VerticalAlignment="Top">
+                        <s:SciChartSurface Background="#25303D" Height="145" VerticalAlignment="Top" Grid.Row="1">
                             <s:SciChartSurface.XAxis>
                                 <s:NumericAxis AxisTitle="Sample Index"
                                                AutoRange="Always"
@@ -277,7 +282,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Left cards -->
-                    <Grid Grid.Column="0" Margin="0,-23,12,23">
+                    <Grid Grid.Column="0" Margin="0,0,12,0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -293,13 +298,13 @@
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="12"
-                                Margin="0,47,12,12">
+                                Margin="0,10,12,12">
                             <StackPanel>
                                 <TextBlock Text="Current Velocity"
                                            Foreground="#92A1B5"
                                            FontSize="11"
                                            Margin="0,0,0,6"/>
-                                <TextBlock Text="--"
+                                <TextBlock Text="{Binding CurrentVelocity, StringFormat={}{0:F0}}"
                                            Foreground="White"
                                            FontSize="24"
                                            FontWeight="Bold"/>
@@ -309,19 +314,19 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Row="0"
+                        <Border Grid.Row="0" Grid.Column="1"
                                 Background="#273240"
                                 BorderBrush="#374252"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="12"
-                                Margin="317,47,0,12" Grid.ColumnSpan="2">
+                                Margin="0,12,0,12">
                             <StackPanel>
                                 <TextBlock Text="Current RPM"
                                            Foreground="#92A1B5"
                                            FontSize="11"
                                            Margin="0,0,0,6"/>
-                                <TextBlock Text="--"
+                                <TextBlock Text="{Binding CurrentRPM, StringFormat={}{0:F0}}"
                                            Foreground="White"
                                            FontSize="24"
                                            FontWeight="Bold"/>
@@ -339,15 +344,15 @@
                                 Padding="12"
                                 Margin="0,0,12,0">
                             <StackPanel>
-                                <TextBlock Text="Current IMT"
+                                <TextBlock Text="Current IMU"
                                            Foreground="#92A1B5"
                                            FontSize="11"
                                            Margin="0,0,0,6"/>
-                                <TextBlock Text="--"
+                                <TextBlock Text="{Binding CurrentIMT, StringFormat={}{0:F0}}"
                                            Foreground="White"
                                            FontSize="24"
                                            FontWeight="Bold"/>
-                                <TextBlock Text="input value"
+                                <TextBlock Text="m/s2"
                                            Foreground="#92A1B5"
                                            FontSize="12"/>
                             </StackPanel>
@@ -364,15 +369,15 @@
                                            Foreground="#92A1B5"
                                            FontSize="11"
                                            Margin="0,0,0,6"/>
-                                <TextBlock Text="Receiving UDP"
+                                <TextBlock Text="Receiving Port: 5000"
                                            Foreground="White"
                                            FontSize="18"
                                            FontWeight="SemiBold"/>
-                                <ProgressBar Value="75"
+                                <!-- <ProgressBar Value="75"
                                              Height="8"
                                              Margin="0,12,0,0"
                                              Foreground="#4FA3E3"
-                                             Background="#1F2733"/>
+                                             Background="#1F2733"/> -->
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -380,7 +385,7 @@
                     <!-- Right section -->
                     <Grid Grid.Column="1">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="300"/>
+                            <RowDefinition Height="200"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
@@ -390,91 +395,95 @@
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="12"
-                                Margin="10,24,10,72">
+                                Margin="10,12,10,0">
                             <Grid>
-                                <TextBlock Text="Track Map"
-                                           Foreground="#D9E1EC"
-                                           FontSize="11"
-                                           FontWeight="SemiBold"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Top"/>
+                                <TextBlock Text="Speed Gauge"
+                                Foreground="#D9E1EC"
+                                FontSize="11"
+                                FontWeight="SemiBold"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Top"/>
 
                                 <Viewbox Margin="20,20,20,20">
                                     <Grid Width="260" Height="260">
-                                        <Path Stroke="#BFC4C9"
-                                              StrokeThickness="4"
-                                              Stretch="Uniform"
-                                              Data="M 118,18
-                                                    C 165,15 206,42 212,78
-                                                    C 217,110 194,125 199,153
-                                                    C 206,189 244,193 250,228
-                                                    C 257,270 231,304 198,314
-                                                    C 173,322 162,296 142,300
-                                                    C 118,305 109,339 86,336
-                                                    C 61,332 60,288 41,270
-                                                    C 21,251 10,239 14,208
-                                                    C 19,173 58,159 56,130
-                                                    C 54,101 25,84 33,57
-                                                    C 41,31 78,18 118,18" />
+                                        <!-- vòng nền -->
+                                        <Ellipse Width="180"
+                                        Height="180"
+                                        Stroke="#1A2430"
+                                        StrokeThickness="12"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"/>
 
-                                        <Ellipse Width="14"
-                                                 Height="14"
-                                                 Fill="#F2D94E"
-                                                 Stroke="#DDCA3A"
-                                                 StrokeThickness="2"
-                                                 HorizontalAlignment="Left"
-                                                 VerticalAlignment="Top"
-                                                 Margin="58,120,0,0"/>
+                                        <!-- cung màu ngoài -->
+                                        <Path Stroke="#42D7FF"
+                                        StrokeThickness="10"
+                                        StrokeStartLineCap="Round"
+                                        StrokeEndLineCap="Round"
+                                        Data="M 55,170 A 90,90 0 1 1 205,170"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top" Margin="0,10,0,0"/>
+
+                                        <!-- tâm -->
+                                        <Ellipse Width="18"
+                                        Height="18"
+                                        Fill="#3A4554"
+                                        Stroke="#6E7B8C"
+                                        StrokeThickness="2"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"/>
+
+                                        <!-- kim -->
+                                        <Line X1="130" Y1="130" X2="130" Y2="65"
+                                        Stroke="#FF5A4F"
+                                        StrokeThickness="4"
+                                        StrokeStartLineCap="Round"
+                                        StrokeEndLineCap="Round"
+                                        RenderTransformOrigin="0.5,0.5">
+                                            <Line.RenderTransform>
+                                                <RotateTransform Angle="{Binding VelocityAngle}"/>
+                                            </Line.RenderTransform>
+                                        </Line>
+
+                                        <!-- số lớn ở giữa -->
+                                        <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Margin="0,70,0,0">
+                                            <TextBlock Text="{Binding CurrentVelocity, StringFormat={}{0:F0}}"
+                                            Foreground="White"
+                                            FontSize="34"
+                                            FontWeight="Bold"
+                                            HorizontalAlignment="Center"/>
+                                            <TextBlock Text="KM/H"
+                                            Foreground="#42D7FF"
+                                            FontSize="12"
+                                            HorizontalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <!-- mốc trái -->
+                                        <TextBlock Text="0"
+                                        Foreground="#42D7FF"
+                                        FontSize="11"
+                                        Margin="42,180,0,0"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"/>
+
+                                        <!-- mốc giữa -->
+                                        <TextBlock Text="175"
+                                        Foreground="#42D7FF"
+                                        FontSize="11"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Top"
+                                        Margin="0,20,0,0"/>
+
+                                        <!-- mốc phải -->
+                                        <TextBlock Text="350"
+                                        Foreground="#42D7FF"
+                                        FontSize="11"
+                                        Margin="0,180,35,0"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"/>
                                     </Grid>
                                 </Viewbox>
-                            </Grid>
-                        </Border>
-
-                        <Border Grid.Row="1"
-                                Background="#273240"
-                                BorderBrush="#374252"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="12">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Packet Source"
-                                               Foreground="#92A1B5"
-                                               FontSize="11"
-                                               Margin="0,0,0,6"/>
-                                    <TextBlock Text="UDP :5000"
-                                               Foreground="White"
-                                               FontSize="18"
-                                               FontWeight="SemiBold"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="Theme"
-                                               Foreground="#92A1B5"
-                                               FontSize="11"
-                                               Margin="0,0,0,6"/>
-                                    <TextBlock Text="Dark Motorsport"
-                                               Foreground="White"
-                                               FontSize="18"
-                                               FontWeight="SemiBold"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="Runtime"
-                                               Foreground="#92A1B5"
-                                               FontSize="11"
-                                               Margin="0,0,0,6"/>
-                                    <TextBlock Text="SciChart + WPF"
-                                               Foreground="White"
-                                               FontSize="18"
-                                               FontWeight="SemiBold"/>
-                                </StackPanel>
                             </Grid>
                         </Border>
                     </Grid>
