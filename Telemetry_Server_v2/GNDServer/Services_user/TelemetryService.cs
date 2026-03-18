@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,8 +9,9 @@ namespace GNDServer.Services_user
     public struct TelemetryData
     {
         public float Velocity;
-        public float IMT;
+        public float IMU;
         public float RPM;
+        public float temperature;
     }
 
     internal class TelemetryService : IDisposable
@@ -20,7 +21,7 @@ namespace GNDServer.Services_user
         private uint _lastVersion;              // Using for tracking the version of the last data received 
         private Task _captureTask = Task.CompletedTask; // Using for managing the capture loop thread
 
-        public event Action<TelemetryData> OnDataReceived;  // Event triggered when new telemetry data is received
+        public event Action<TelemetryData> OnDataReceived;  // Event triggered to sending data to which need data 
 
         // P/Invoke declarations for native DLL functions
         [DllImport("Telemetry_Native.dll", CallingConvention = CallingConvention.Cdecl)]
@@ -60,6 +61,7 @@ namespace GNDServer.Services_user
             }
             catch
             {
+                Console.WriteLine("Error while stopping");
             }
 
             stopServer();
@@ -73,12 +75,13 @@ namespace GNDServer.Services_user
             while (!token.IsCancellationRequested)
             {
                 int result = getLastData(buffer, buffer.Length, out uint version);
-
+                //Console.WriteLine($"C# Check: Result={result}, Version={version}, LastVersion={_lastVersion}"); // Debug with result number version and lastVersion
                 if (result >= _dataSize && version != _lastVersion)
                 {
                     _lastVersion = version;
-                    TelemetryData data = ByteArrayToStruct(buffer);
-                    OnDataReceived?.Invoke(data);
+                    TelemetryData data = Parse(buffer);
+                    //Console.WriteLine($"DEBUG DATA: V={data.Velocity} | R={data.RPM} | IMT={data.IMT}");
+                    OnDataReceived?.Invoke(data);  // When having flags trans data to handle ,which registed
                 }
 
                 Thread.Sleep(10);
@@ -86,17 +89,15 @@ namespace GNDServer.Services_user
         }
 
         // Converts a byte array to a TelemetryData struct using GCHandle to pin the array in memory
-        private TelemetryData ByteArrayToStruct(byte[] bytes)
+        private TelemetryData Parse(byte[] buffer)
         {
-            GCHandle handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-            try
+            return new TelemetryData
             {
-                return Marshal.PtrToStructure<TelemetryData>(handle.AddrOfPinnedObject());
-            }
-            finally
-            {
-                handle.Free();
-            }
+                Velocity = BitConverter.ToInt16(buffer, 0),
+                RPM = BitConverter.ToInt16(buffer, 2),
+                IMU = BitConverter.ToInt16(buffer, 4),
+                temperature = BitConverter.ToInt16(buffer, 6)
+            };
         }
 
         // Another method to stop the thread saftely
