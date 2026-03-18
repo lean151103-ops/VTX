@@ -40,15 +40,15 @@ namespace GNDServer.Viewmodels_user
             }
         }
 
-        private double _currentIMT;
-        public double CurrentIMT
+        private double _currentIMU;
+        public double CurrentIMU
         {
-            get => _currentIMT;
+            get => _currentIMU;
             set
             {
-                if (_currentIMT != value)
+                if (_currentIMU != value)
                 {
-                    _currentIMT = value;
+                    _currentIMU = value;
                     OnPropertyChanged();
                 }
             }
@@ -66,7 +66,7 @@ namespace GNDServer.Viewmodels_user
         }
 
         public XyDataSeries<double, double> VelocitySeries { get; private set; }
-        public XyDataSeries<double, double> IMTSeries { get; private set; }
+        public XyDataSeries<double, double> IMUSeries { get; private set; }
         public XyDataSeries<double, double> RPMSeries { get; private set; }
 
         public MainViewModel()
@@ -75,36 +75,39 @@ namespace GNDServer.Viewmodels_user
             VelocitySeries.SeriesName = "Velocity";
             VelocitySeries.FifoCapacity = 300;
 
-            IMTSeries = new XyDataSeries<double, double>();
-            IMTSeries.SeriesName = "IMT";
-            IMTSeries.FifoCapacity = 300;
+            IMUSeries = new XyDataSeries<double, double>();
+            IMUSeries.SeriesName = "IMU";
+            IMUSeries.FifoCapacity = 300;
 
             RPMSeries = new XyDataSeries<double, double>();
             RPMSeries.SeriesName = "RPM";
             RPMSeries.FifoCapacity = 300;
 
             _service = new TelemetryService();
-            _service.OnDataReceived += Service_OnDataReceived;
-            _service.Start();
+            _service.OnDataReceived += Service_OnDataReceived; // While receiving flag OnDataReceived, calling Service_OnDataReceived (+= is registing handler function)
+            _service.Start(); 
         }
 
+        //Collecting data and calling UI-Thread to update chart & UI 
         private void Service_OnDataReceived(TelemetryData data)
         {
+            //Application.Current: app WPF current -> .Dispatcher: manage UI-Thread -> .BeginInvoke: making UI-thread running this function
             Application.Current.Dispatcher.BeginInvoke(new Action(() =>
             {
                 VelocitySeries.Append(_xIndex, data.Velocity);
-                IMTSeries.Append(_xIndex, data.IMT);
+                IMUSeries.Append(_xIndex, data.IMU);
                 RPMSeries.Append(_xIndex, data.RPM);
 
                 CurrentVelocity = data.Velocity;
                 VelocityAngle = -120 + (CurrentVelocity / 350.0) * 240.0;
                 CurrentRPM = data.RPM;
-                CurrentIMT = data.IMT;
+                CurrentIMU = data.IMU;
 
                 _xIndex++;
             }));
         }
 
+        // If event OnPropertyChanged then updating the property to app (CallMemberName to don't need to pass propertyName)
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
