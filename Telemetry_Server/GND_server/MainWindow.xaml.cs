@@ -1,63 +1,93 @@
-using GNDServer.Viewmodels_user;
 using System;
 using System.ComponentModel;
+using System.Drawing;
 using System.Windows;
-using System.Windows.Media;
+using GNDServer_v2.Viewmodels_user;
 
-namespace GNDServer
+namespace GNDServer_v2
 {
     public partial class MainWindow : Window
     {
         private readonly MainViewModel _vm;
+
+        private ScottPlot.Plot _velocityPlotModel;
+        private ScottPlot.Plot _rpmPlotModel;
+        private ScottPlot.Plot _imuPlotModel;
 
         public MainWindow()
         {
             InitializeComponent();
 
             _vm = new MainViewModel();
-            this.DataContext = _vm;
-
-            this.Loaded += MainWindow_Loaded;
-            this.Closing += MainWindow_Closing;
-
-            _vm.OnDataUpdated += Vm_OnDataUpdated;
+            DataContext = _vm;
+            _vm.PlotsUpdated += Vm_PlotsUpdated;
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // ===== ADD SIGNAL =====
-            var vel = VelocityPlot.Plot.AddSignal(_vm.VelocitySeries);
-            vel.Color = System.Drawing.Color.DeepSkyBlue;
+            _velocityPlotModel = CreatePlot(
+                _vm.VelocityValues,
+                "#4FA3E3",
+                hideBottomAxis: true);
 
-            var rpm = RPMPlot.Plot.AddSignal(_vm.RPMSeries);
-            rpm.Color = System.Drawing.Color.Orange;
+            _rpmPlotModel = CreatePlot(
+                _vm.RPMValues,
+                "#F26B2D",
+                hideBottomAxis: true);
 
-            var imu = IMTPlot.Plot.AddSignal(_vm.IMUSeries);
-            imu.Color = System.Drawing.Color.LimeGreen;
+            _imuPlotModel = CreatePlot(
+                _vm.IMUValues,
+                "#7ED957",
+                hideBottomAxis: false);
 
-            VelocityPlot.Plot.Style(ScottPlot.Style.Black);
-            RPMPlot.Plot.Style(ScottPlot.Style.Black);
-            IMTPlot.Plot.Style(ScottPlot.Style.Black);
+            VelocityPlot.Reset(_velocityPlotModel);
+            RPMPlot.Reset(_rpmPlotModel);
+            IMUPlot.Reset(_imuPlotModel);
 
-            VelocityPlot.Plot.Grid(color: System.Drawing.Color.FromArgb(40, 200, 200, 200));
-            RPMPlot.Plot.Grid(color: System.Drawing.Color.FromArgb(40, 200, 200, 200));
-            IMTPlot.Plot.Grid(color: System.Drawing.Color.FromArgb(40, 200, 200, 200));
+            VelocityPlot.Refresh();
+            RPMPlot.Refresh();
+            IMUPlot.Refresh();
         }
 
-        private void Vm_OnDataUpdated()
+        private static ScottPlot.Plot CreatePlot(double[] values, string hexColor, bool hideBottomAxis)
         {
-            Dispatcher.Invoke(() =>
+            var plt = new ScottPlot.Plot();
+
+            Color bg = ColorTranslator.FromHtml("#25303D");
+            Color line = ColorTranslator.FromHtml(hexColor);
+
+            plt.Style(figureBackground: bg, dataBackground: bg);
+            var sig = plt.AddSignal(values, color: line);
+            sig.LineWidth = 1;
+            plt.Grid(enable: true);
+
+            if (hideBottomAxis)
             {
-                VelocityPlot.Render();
-                RPMPlot.Render();
-                IMTPlot.Render();
-            });
+                plt.XAxis.Hide();
+                plt.XAxis2.Hide();
+            }
+
+            plt.YAxis2.Hide();
+            plt.AxisAuto();
+
+            return plt;
+        }
+
+        private void Vm_PlotsUpdated(object sender, EventArgs e)
+        {
+            _velocityPlotModel.AxisAuto();
+            _rpmPlotModel.AxisAuto();
+            _imuPlotModel.AxisAuto();
+
+            VelocityPlot.Refresh();
+            RPMPlot.Refresh();
+            IMUPlot.Refresh();
         }
 
         private void MainWindow_Closing(object sender, CancelEventArgs e)
         {
-            if (_vm != null)
-                _vm.Dispose();
+            _vm.PlotsUpdated -= Vm_PlotsUpdated;
+            _vm.Dispose();
         }
     }
 }
