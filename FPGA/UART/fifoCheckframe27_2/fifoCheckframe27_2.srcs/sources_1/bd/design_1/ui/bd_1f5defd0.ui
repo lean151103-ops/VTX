@@ -1,0 +1,42 @@
+{
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"0.90439",
+   "Default View_TopLeft":"169,-1",
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.0r6  2020-01-29 bk=1.5227 VDI=41 GEI=36 GUI=JA:10.0 non-TLS
+#  -string -flagsOSRD
+preplace port port-id_i_rx_0 -pg 1 -lvl 0 -x -10 -y 190 -defaultsOSRD
+preplace port port-id_TX_0 -pg 1 -lvl 6 -x 1490 -y 240 -defaultsOSRD
+preplace port port-id_clk_in1_0 -pg 1 -lvl 0 -x -10 -y 60 -defaultsOSRD
+preplace port port-id_led_0 -pg 1 -lvl 6 -x 1490 -y 310 -defaultsOSRD
+preplace inst wrapper_rx_fifo_1 -pg 1 -lvl 3 -x 620 -y 150 -defaultsOSRD
+preplace inst xlconstant_0 -pg 1 -lvl 2 -x 340 -y 70 -defaultsOSRD
+preplace inst wrapper_tx_fifo_0 -pg 1 -lvl 4 -x 940 -y 360 -defaultsOSRD
+preplace inst clk_wiz_0 -pg 1 -lvl 1 -x 110 -y 60 -defaultsOSRD
+preplace inst test_led_0 -pg 1 -lvl 5 -x 1280 -y 310 -defaultsOSRD
+preplace inst fifo_checkFrame_0 -pg 1 -lvl 5 -x 1280 -y 140 -defaultsOSRD
+preplace inst uart_rx_0 -pg 1 -lvl 2 -x 340 -y 180 -defaultsOSRD
+preplace inst uart_tx_0 -pg 1 -lvl 3 -x 620 -y 410 -defaultsOSRD
+preplace netloc clk_in1_0_1 1 0 1 N 60
+preplace netloc clock_0_1 1 1 4 200 10 460 250 760 250 1080
+preplace netloc fifo_checkFrame_0_error_frame 1 4 2 1100 40 1440
+preplace netloc fifo_checkFrame_0_o_data 1 3 3 770 10 NJ 10 1460
+preplace netloc fifo_checkFrame_0_o_empty 1 3 3 780 20 NJ 20 1450
+preplace netloc fifo_checkFrame_0_o_full 1 2 4 480 30 NJ 30 N 30 1430
+preplace netloc i_rx_0_1 1 0 2 N 190 N
+preplace netloc test_led_0_led 1 5 1 N 310
+preplace netloc uart_rx_0_o_data_avail 1 2 1 N 170
+preplace netloc uart_rx_0_o_data_byte 1 2 1 470 150n
+preplace netloc uart_tx_0_TX 1 3 3 750J 240 NJ 240 NJ
+preplace netloc uart_tx_0_tdone 1 3 1 N 400
+preplace netloc wrapper_rx_fifo_1_din 1 3 2 N 160 N
+preplace netloc wrapper_rx_fifo_1_wr_en 1 3 2 N 140 N
+preplace netloc wrapper_tx_fifo_0_fifo_rd_en 1 4 1 1090 180n
+preplace netloc wrapper_tx_fifo_0_tx_tdin 1 2 3 480 490 NJ 490 1070
+preplace netloc wrapper_tx_fifo_0_tx_tenable 1 2 3 480 260 NJ 260 1070
+preplace netloc xlconstant_0_dout 1 2 3 470 50 740 120 N
+levelinfo -pg 1 -10 110 340 620 940 1280 1490
+pagesize -pg 1 -db -bbox -sgen -120 0 1580 500
+"
+}
+0
