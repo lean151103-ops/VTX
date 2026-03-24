@@ -10,9 +10,23 @@
 #include <atomic>
 #include <chrono>
 #include <mutex>
+#include <fstream>
+#include <ctime>
 
 const uint32_t POLYMINAl = 0xEDB88320u;
 std::mutex uartMutex; // Mutex to protect UART access in multi-threaded environment
+std::mutex logMutex;
+
+struct logRow {
+    std::string direction;
+    int seq;
+    bool valid;
+    int badFrameCount;
+    std::string note;
+};
+
+std::vector<logRow> g_logs;
+std::atomic<int> badFrame{0};
 
 // This fucntion setting and init UART COMM
 HANDLE initUART(const char* portName, int baudrate){
@@ -79,6 +93,46 @@ uint32_t pack_crc32_lte(const uint8_t* buffer) {
             );
 }
 
+// ================= Time + CSV Log =================
+std::string csvEscape(const std::string& s) {
+    std::string out = "\"";
+    for (char c : s) {
+        if (c == '"') {
+            out += "\"\"";
+        } else {
+            out += c;
+        }
+    }
+    out += "\"";
+    return out;
+}
+
+void addLogRow(const char* direction, int seq, bool valid, int badCnt, const std::string& note) {
+    std::lock_guard<std::mutex> lock(logMutex);
+    g_logs.push_back(logRow{ direction, seq, valid, badCnt, note });
+}
+
+bool saveLogsToCSV(const char* filename) {
+    std::ofstream out(filename, std::ios::out | std::ios::trunc);
+    if (!out.is_open()) {
+        return false;
+    }
+
+    out << "Direction,Seq,Valid,BadFrameCount,Note\n";
+
+    std::lock_guard<std::mutex> lock(logMutex);
+    for (const auto& r : g_logs) {
+        out << csvEscape(r.direction) << ","
+            << r.seq << ","
+            << csvEscape(r.valid ? "OK" : "FAIL") << ","
+            << r.badFrameCount << ","
+            << csvEscape(r.note) << "\n";
+    }
+
+    out.close();
+    return true;
+}
+
 // Creating frame for sending: (2 header | 2 seq | 100 payload | 4 crc) = 108 bytes
 void createFrame(std::vector<uint8_t>& frame, const uint16_t seq) {
     frame.clear();
@@ -139,7 +193,6 @@ bool uartReadByte(HANDLE hSerial, uint8_t& byte) {
     }
 }
 
-int badFrame = 0;
 bool uartReceiveFrame(HANDLE hSerial, std::vector<uint8_t>& frame) {
     enum State {
         WAIT_H1,
@@ -188,8 +241,14 @@ bool uartReceiveFrame(HANDLE hSerial, std::vector<uint8_t>& frame) {
                         return true;
                     } else {
                         // CRC sai hoặc frame hỏng -> resync từ đầu
+                        int seqBad = -1;
+                        if (frame.size() >= 4) {
+                            seqBad = (int)frame[2] | ((int)frame[3] << 8);
+                        }
+                        int curBad = ++badFrame;
                         badFrame++;
                         std::cout << "[RECV] Bad frame count = " << badFrame << std::endl;
+                        addLogRow("RX", seqBad, false, curBad, "Bad frame / CRC error");
                         frame.clear();
                         state = WAIT_H1;
                     }
@@ -203,8 +262,8 @@ void threadSend(HANDLE uart) {
     LARGE_INTEGER freq, now;
     QueryPerformanceFrequency(&freq);
 
-    constexpr int FRAME_BITS = 108 * 10;
-    constexpr int BAUDRATE   = 460800;
+    const int FRAME_BITS = 108 * 10;
+    const int BAUDRATE   = 910000;
 
     const int64_t ticks_num = (int64_t)freq.QuadPart * FRAME_BITS;
     const int64_t ticks_int = ticks_num / BAUDRATE;
@@ -241,7 +300,7 @@ void threadSend(HANDLE uart) {
                 next_tick += 1;
                 rem_acc -= BAUDRATE;
             }
-        } 
+        }
         //else {
         //     if (remain > freq.QuadPart / 1000) {   // > ~1 ms
         //         Sleep(1);
@@ -251,6 +310,8 @@ void threadSend(HANDLE uart) {
         // }
     }
 }
+
+// // threadSend_v1
 // void threadSend(HANDLE uart) {
 //     uint16_t seq = 0;
 //     while (seq < 50000) {
@@ -282,10 +343,11 @@ void threadReceive(HANDLE uart) {
 
         uint16_t seq = (uint16_t)rx_frame[2] | ((uint16_t)rx_frame[3] << 8);
 
-        if (seq == 10000 || seq == 20000 || seq == 30000 || seq == 40000) {
-            std::cout << "Received valid frame #" << seq << std::endl;
-        }
-        // std::cout << "Received valid frame #" << seq << std::endl;
+        // if (seq == 10000 || seq == 20000 || seq == 30000 || seq == 40000) {
+        //     std::cout << "Received valid frame #" << seq << std::endl;
+        // }
+        addLogRow("RX", seq, true, badFrame.load(), "Received valid frame");
+        std::cout << "Received valid frame #" << seq << std::endl;
         if (seq == 49999) {
             std::cout << "Received last expected frame #" << seq << ". Stopping receiver." << std::endl;
             break;
@@ -304,6 +366,12 @@ int main() {
 
     sender.join();
     receiver.join();
+
+    if (saveLogsToCSV("uart_log7.csv")) {
+        std::cout << "Saved CSV log: uart_log.csv" << std::endl;
+    } else {
+        std::cout << "Failed to save CSV log." << std::endl;
+    }
 
     CloseHandle(uart);
     return 0;
