@@ -16,30 +16,29 @@ module fifo_checkFrame (
     localparam [7:0] H2 = 8'h55;
     localparam integer FRAME_SIZE = 108;
     localparam integer CRC_POS    = 104;
-    localparam AW = 9;
+    localparam AW = 9; // RAM 512 bytes
 
-    localparam reg [2:0]
-        S_IDLE    = 3'd0,
-        S_WAIT_H2 = 3'd1,
-        S_RECEIVE = 3'd2,
-        S_CHECK   = 3'd3,
-        S_COMMIT  = 3'd4;
+    localparam [1:0]
+        S_IDLE    = 2'd0,
+        S_WAIT_H2 = 2'd1,
+        S_RECEIVE = 2'd2,
+        S_CHECK   = 2'd3;
 
-    reg [2:0] st = 0;
-
-    reg [7:0]  byte_cnt;
+    reg [1:0] st;
+    reg [7:0] byte_cnt;
     reg [31:0] crc_calc;
     reg [31:0] crc_rx;
 
     reg [7:0] mem [0:511];
-    reg [AW:0] wptr = 0;
-    reg [AW:0] rptr = 0;
+    reg [AW:0] wptr;            
+    reg [AW:0] wptr_confirmed;  
+    reg [AW:0] rptr;            
 
-    reg [7:0] temp_buf [0:FRAME_SIZE-1];
-    reg [7:0] commit_idx;
+    assign o_full  = (wptr[AW-1:0] == rptr[AW-1:0]) && (wptr[AW] != rptr[AW]);
+    assign o_empty = (wptr_confirmed == rptr);
+    assign o_data  = mem[rptr[AW-1:0]];
 
     // ================= CRC32 LUT =================
-    // ================= 2. CRC32 LUT =================
     function [31:0] crc32_table;
         input [7:0] idx;
         begin
@@ -304,116 +303,85 @@ module fifo_checkFrame (
             endcase
         end
     endfunction
-
-    // ================= FSM =================
+    
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             st <= S_IDLE;
-            byte_cnt <= 0;
-            crc_calc <= 32'hFFFFFFFF;
-            crc_rx <= 32'd0;
-            error_frame <= 2'b00;
-            commit_idx <= 0;
             wptr <= 0;
+            wptr_confirmed <= 0;
+            byte_cnt <= 0;
+            error_frame <= 0;
         end else begin
             case (st)
                 S_IDLE: begin
-                    if (i_wr_en && i_wr_data == H1) begin
-                        temp_buf[0] <= H1;
-                        crc_calc <= (crc_calc >> 8) ^ crc32_table(crc_calc[7:0] ^ H1);
-                        crc_rx <= 32'd0;
+                    if (i_wr_en && i_wr_data == H1 && !o_full) begin
+                        mem[wptr[AW-1:0]] <= H1;
+                        wptr     <= wptr + 1'b1;
+                        crc_calc <= (32'hFFFFFFFF >> 8) ^ crc32_table(8'hFF ^ H1);  
                         byte_cnt <= 8'd1;
-                        st <= S_WAIT_H2;
+                        st       <= S_WAIT_H2;
                     end
                 end
 
                 S_WAIT_H2: begin
                     if (i_wr_en) begin
-                        if (i_wr_data == H2) begin
-                            temp_buf[1] <= H2;
+                        if (i_wr_data == H2 && !o_full) begin
+                            mem[wptr[AW-1:0]] <= H2;
+                            wptr     <= wptr + 1'b1;
                             crc_calc <= (crc_calc >> 8) ^ crc32_table(crc_calc[7:0] ^ H2);
-                            crc_rx <= 32'd0;
                             byte_cnt <= 8'd2;
-                            st <= S_RECEIVE;
+                            st       <= S_RECEIVE;
                         end else begin
-                            crc_calc <= 32'hFFFFFFFF;
-                            crc_rx <= 32'd0;
-                            byte_cnt <= 0;
-                            st <= S_IDLE;
+                            wptr <= wptr_confirmed; 
+                            st   <= S_IDLE;
                         end
                     end
                 end
 
                 S_RECEIVE: begin
                     if (i_wr_en) begin
-                        temp_buf[byte_cnt] <= i_wr_data;
+                        if (!o_full) begin
+                            mem[wptr[AW-1:0]] <= i_wr_data;
+                            wptr <= wptr + 1'b1;
 
-                        if (byte_cnt < CRC_POS) begin
-                            crc_calc <= (crc_calc >> 8) ^ crc32_table(crc_calc[7:0] ^ i_wr_data);
-                        end else begin
-                            case (byte_cnt)
-                                8'd104: crc_rx[7:0]   <= i_wr_data;
-                                8'd105: crc_rx[15:8]  <= i_wr_data;
-                                8'd106: crc_rx[23:16] <= i_wr_data;
-                                8'd107: crc_rx[31:24] <= i_wr_data;
-                            endcase
-                        end
+                            if (byte_cnt < CRC_POS)
+                                crc_calc <= (crc_calc >> 8) ^ crc32_table(crc_calc[7:0] ^ i_wr_data);
+                            else begin
+                                case (byte_cnt)
+                                    8'd104: crc_rx[7:0]   <= i_wr_data;
+                                    8'd105: crc_rx[15:8]  <= i_wr_data;
+                                    8'd106: crc_rx[23:16] <= i_wr_data;
+                                    8'd107: crc_rx[31:24] <= i_wr_data;
+                                endcase
+                            end
 
-                        if (byte_cnt == FRAME_SIZE - 1) begin
-                            st <= S_CHECK;
+                            if (byte_cnt == FRAME_SIZE - 1) st <= S_CHECK;
+                            else byte_cnt <= byte_cnt + 1'b1;
                         end else begin
-                            byte_cnt <= byte_cnt + 1'b1;
+                            wptr <= wptr_confirmed;
+                            st <= S_IDLE;
                         end
                     end
                 end
 
                 S_CHECK: begin
                     if ((crc_calc ^ 32'hFFFFFFFF) == crc_rx) begin
+                        wptr_confirmed <= wptr; 
                         error_frame <= 2'b00;
-                        commit_idx <= 0;
-                        st <= S_COMMIT;
                     end else begin
+                        wptr <= wptr_confirmed; 
                         error_frame <= 2'b01;
-                        crc_calc <= 32'hFFFFFFFF;
-                        crc_rx <= 32'd0;
-                        byte_cnt <= 0;
-                        st <= S_IDLE;
                     end
-                end
-
-                S_COMMIT: begin
-                    if (!o_full) begin
-                        mem[wptr[AW-1:0]] <= temp_buf[commit_idx];
-                        wptr <= wptr + 1'b1;
-
-                        if (commit_idx == FRAME_SIZE - 1) begin
-                            crc_calc <= 32'hFFFFFFFF;
-                            crc_rx <= 32'd0;
-                            byte_cnt <= 0;
-                            commit_idx <= 0;
-                            st <= S_IDLE;
-                        end else begin
-                            commit_idx <= commit_idx + 1'b1;
-                        end
-                    end
+                    st <= S_IDLE; 
                 end
             endcase
         end
     end
 
-    // ================= Read Logic =================
+    // ================= LOGIC ĐỌC =================
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            rptr <= 0;
-        end else begin
-            if (i_rd_en && !o_empty) begin
-                rptr <= rptr + 1'b1;
-            end
-        end
+        if (!rst_n) rptr <= 0;
+        else if (i_rd_en && !o_empty) rptr <= rptr + 1'b1;
     end
-
-    assign o_empty = (wptr == rptr);
-    assign o_full  = (wptr[AW-1:0] == rptr[AW-1:0]) && (wptr[AW] != rptr[AW]);
-    assign o_data  = mem[rptr[AW-1:0]];
 
 endmodule
