@@ -349,7 +349,7 @@ module fifo_checkFrame (
                         if(byte_cnt == 3) begin
                             byte_cnt <= byte_cnt + 1;
                             st <= S_RECEIVE_LEN;
-                        end else byte <= byte + 1;
+                        end else byte_cnt <= byte_cnt + 1;
                     end
                 end
 
