@@ -1,3 +1,4 @@
+// Multi-threaded UART-loopback with unfixed length PAYLOAD 
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
@@ -8,11 +9,31 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include <mutex>
+#include <fstream>
+#include <ctime>
+
+const int BAUDRATE = 1500000;
+const char PORT[] = "\\\\.\\COM9";
 
 const uint32_t POLYMINAl = 0xEDB88320u;
-std::atomic<bool> keepRunning(true);
+std::mutex uartMutex; // Mutex to protect UART access in multi-threaded environment
+std::mutex logMutex;
+std::atomic<long long> g_total_BytesSend{0};
+double g_total_time = 0;
+struct logRow {
+    std::string direction;
+    int seq;
+    bool valid;
+    int badFrameCount;
+    std::string note;
+};
 
-HANDLE initUART(const char* portName, int baudrate) {
+std::vector<logRow> g_logs;
+std::atomic<int> badFrame{0};
+
+// This fucntion setting and init UART COMM
+HANDLE initUART(const char* portName, int baudrate){
     HANDLE hSerial = CreateFileA(
         portName,
         GENERIC_READ | GENERIC_WRITE,
@@ -23,16 +44,9 @@ HANDLE initUART(const char* portName, int baudrate) {
         NULL
     );
     if (hSerial == INVALID_HANDLE_VALUE) {
-        std::cout << "Open COM failed. Error: " << GetLastError() << std::endl;
-        system("pause");
+        std::cerr << "Error opening serial port:" << portName << std::endl;
         return INVALID_HANDLE_VALUE;
     }
-    else
-    {
-        std::cout << "COM opened successfully\n";
-    }
-    uint8_t testData[1000];
-    memset(testData, 0xAA, 1000); // Dien du lieu test
     DCB dcb{};
     dcb.DCBlength = sizeof(dcb);
     GetCommState(hSerial, &dcb);
@@ -43,175 +57,336 @@ HANDLE initUART(const char* portName, int baudrate) {
     SetCommState(hSerial, &dcb);
 
     COMMTIMEOUTS timeouts = {};
-    timeouts.ReadIntervalTimeout = 50; 
+    timeouts.ReadIntervalTimeout = MAXDWORD; 
     timeouts.ReadTotalTimeoutConstant = 0;
     timeouts.ReadTotalTimeoutMultiplier = 0;
     SetCommTimeouts(hSerial, &timeouts);
     return hSerial;
 }
 
+
+// Calculating CRC of data and then packaging in Frame
 uint32_t crc32(const uint8_t data[], size_t length) {
     uint32_t crc = 0xFFFFFFFF;
-    for (size_t i = 0; i < length; i++) {
+    for (size_t i=0; i < length; i++) {
         crc = crc ^ data[i];
-        for (int j = 0; j < 8; j++) {
-            if (crc & 1) crc = (crc >> 1) ^ POLYMINAl;
+        for(int j=0; j <8; j++) {
+            if(crc & 1) {
+                crc = (crc >> 1) ^ POLYMINAl;
+            }
             else crc = (crc >> 1);
         }
     }
     return crc ^ 0xFFFFFFFFu;
 }
 
-void unpack_crc32_lte(const uint32_t crc, uint8_t* buffer) {
+// Separating crc32 into 4 bytes and adding into Frame (TRANS task)
+void unpack_crc32_lte (const uint32_t crc, uint8_t* buffer) {
     buffer[0] = crc & 0xFF;
     buffer[1] = (crc >> 8) & 0xFF;
     buffer[2] = (crc >> 16) & 0xFF;
     buffer[3] = (crc >> 24) & 0xFF;
-}
+} 
 
+// Merging 4 byte crc32 from Frame (RECV task)
 uint32_t pack_crc32_lte(const uint8_t* buffer) {
-    return ((uint32_t)buffer[0] |
-            (uint32_t)buffer[1] << 8 |
-            (uint32_t)buffer[2] << 16 |
-            (uint32_t)buffer[3] << 24);
+    return ((uint32_t) buffer[0] |
+            (uint32_t) buffer[1] << 8 |
+            (uint32_t) buffer[2] << 16 |
+            (uint32_t) buffer[3] << 24
+            );
 }
 
-void createFrame(std::vector<uint8_t>& frame, const uint16_t seq) {
+// ================= Time + CSV Log =================
+std::string csvEscape(const std::string& s) {
+    std::string out = "\"";
+    for (char c : s) {
+        if (c == '"') {
+            out += "\"\"";
+        } else {
+            out += c;
+        }
+    }
+    out += "\"";
+    return out;
+}
+
+void addLogRow(const char* direction, int seq, bool valid, int badCnt, const std::string& note) {
+    std::lock_guard<std::mutex> lock(logMutex);
+    g_logs.push_back(logRow{ direction, seq, valid, badCnt, note });
+}
+
+bool saveLogsToCSV(const char* filename) {
+    std::ofstream out(filename, std::ios::out | std::ios::trunc);
+    if (!out.is_open()) {
+        return false;
+    }
+
+    out << "Direction,Seq,Valid,BadFrameCount,Note\n";
+
+    std::lock_guard<std::mutex> lock(logMutex);
+    for (const auto& r : g_logs) {
+        out << csvEscape(r.direction) << ","
+            << r.seq << ","
+            << csvEscape(r.valid ? "OK" : "FAIL") << ","
+            << r.badFrameCount << ","
+            << csvEscape(r.note) << "\n";
+    }
+
+    double total_sec = g_total_time / 1e6;
+    double data_rate_bps = (total_sec > 0) ? (g_total_BytesSend) / total_sec : 0;
+    double data_rate_kbps = (total_sec > 0) ? (g_total_BytesSend / 1024.0) / total_sec : 0;
+
+    out << "\n--- SUMMARY ---\n";
+    out << "Metric,Value,Unit\n";
+    out << "Total Time," << total_sec << ",Seconds\n";
+    out << "Total Bytes Sent," << g_total_BytesSend << ",Bytes\n";
+    out << "Throughput (byte/s)," << data_rate_bps << ",bps\n";
+    out << "Throughput (KB/s)," << data_rate_kbps << ",KB/s\n";
+    out << "Total Bad Frames(Frame)," << badFrame.load() << ",Frames\n";
+
+    out.close();
+    return true;
+}
+
+// Creating frame for sending: (2 header | 2 seq | 100 payload | 4 crc) = 108 bytes
+void createFrame(std::vector<uint8_t>& frame, const uint16_t seq, uint8_t LENGTH) {
     frame.clear();
-    const int LEN_PAYLOAD = 100;
-    frame.push_back(0xAA);
-    frame.push_back(0x55);
+    const uint8_t Header1 = 0xAA;
+    const uint8_t Header2 = 0x55;
+
+    frame.push_back(Header1);
+    frame.push_back(Header2);
     frame.push_back((uint8_t)(seq & 0xFF));
     frame.push_back((uint8_t)((seq >> 8) & 0xFF));
-    for (int i = 0; i < LEN_PAYLOAD; i++) {
+    frame.push_back(LENGTH);
+
+    // static std::mt19937 rng((unsigned)std::random_device{}());
+    // static std::uniform_int_distribution<int> dist(0, 255);
+
+    for (int i = 0; i < LENGTH; i++) {
         frame.push_back((uint8_t)i);
     }
-    uint32_t crc = crc32(&frame[0], 2 + 2 + LEN_PAYLOAD);
+    uint32_t crc = crc32(&frame[0], LENGTH+5);
     uint8_t crcBytes[4];
     unpack_crc32_lte(crc, crcBytes);
     frame.insert(frame.end(), crcBytes, crcBytes + 4);
+    // Now frame contains the complete data to be sent over UART    
 }
 
-bool checkFrame(const std::vector<uint8_t>& recvFrame) {
-    const int LEN_PAYLOAD = 100;
-    if (recvFrame.size() != 108) return false;
-    if (recvFrame[0] != 0xAA || recvFrame[1] != 0x55) return false;
-    uint32_t crc_rx = pack_crc32_lte(&recvFrame[104]);
-    uint32_t crc_calculated = crc32(&recvFrame[0], 104);
-    return (crc_rx == crc_calculated);
+
+// Checking the received frame for correct header and crc (RECV task)
+bool checkFrame(const std::vector<uint8_t>& recvFrame, uint8_t length) {
+    size_t frameSize = 2 + 2 + 1 + (size_t)length + 4;
+    // if(recvFrame.size() != frameSize) return false;
+    // if(recvFrame[0] != 0xAA || recvFrame[1] != 0x55) return false;
+
+    uint32_t crc_rx = pack_crc32_lte(&recvFrame[frameSize - 4]);
+    uint32_t crc_calculated = crc32(&recvFrame[0], frameSize - 4);
+    if(crc_rx != crc_calculated) return false;
+    return true;
+}
+
+bool uartSend(HANDLE hSerial, const uint8_t* data, uint32_t len) {
+    DWORD bytesWritten = 0;
+    // std::lock_guard<std::mutex> lock(uartMutex);
+    return WriteFile(hSerial, data, len, &bytesWritten, NULL) && (bytesWritten == len);
+}
+
+bool uartReadByte(HANDLE hSerial, uint8_t& byte) {
+    DWORD bytesRead = 0;
+
+    while (true) {
+        bool success;
+        // {
+        //     std::lock_guard<std::mutex> lock(uartMutex);
+            success = ReadFile(hSerial, &byte, 1, &bytesRead, NULL);
+        // }
+
+        if (!success) return false;
+        if (bytesRead == 1) return true;
+
+        std::this_thread::yield();
+    }
+}
+
+bool uartReceiveFrame(HANDLE hSerial, std::vector<uint8_t>& frame) {
+    enum State {
+        WAIT_H1,
+        WAIT_H2,
+        RECEIVE_SEQ_LEN,
+        RECEIVE_PAYLOAD_CRC
+    };
+
+    State state = WAIT_H1;
+    uint8_t b = 0;
+    uint8_t length = 0;
+    size_t frameSize = 0;
+    frame.clear();
+
+    while (true) {
+        if (!uartReadByte(hSerial, b)) {
+            return false;
+        }
+
+        switch (state) {
+            case WAIT_H1:
+                if (b == 0xAA) {
+                    frame.clear();
+                    frame.push_back(b);
+                    state = WAIT_H2;
+                }
+                break;
+
+            case WAIT_H2:
+                if (b == 0x55) {
+                    frame.push_back(b);
+                    length = 0;
+                    state = RECEIVE_SEQ_LEN;
+                } else if (b == 0xAA) {
+                    frame.clear();
+                    frame.push_back(b);
+                    state = WAIT_H2;
+                } else {
+                    frame.clear();
+                    state = WAIT_H1;
+                }
+                break;
+
+            case RECEIVE_SEQ_LEN:
+                frame.push_back(b);
+                if(frame.size()==5) {
+                    length = frame[4];
+                    state = RECEIVE_PAYLOAD_CRC;
+                    frameSize = 2 + 2 + 1 + (size_t)length + 4;
+                };
+                break;
+
+            case RECEIVE_PAYLOAD_CRC:
+                frame.push_back(b);
+
+                if (frame.size() == frameSize) {
+                    if (checkFrame(frame, length)) {
+                        return true;
+                    } else {
+                        // CRC sai hoặc frame hỏng -> resync từ đầu
+                        int seqBad = -1;
+                        if (frame.size() >= 4) {
+                            seqBad = (int)frame[2] | ((int)frame[3] << 8);
+                        }
+                        badFrame++;
+                        std::cout << "[RECV] Bad frame count = " << badFrame << std::endl;
+                        addLogRow("RX", seqBad, false, badFrame, "Bad frame / CRC error");
+                        frame.clear();
+                        state = WAIT_H1;
+                    }
+                }
+                break;
+        }
+    }
 }
 
 void threadSend(HANDLE uart) {
-    LARGE_INTEGER freq, now;
+    LARGE_INTEGER freq, now, start, last;
     QueryPerformanceFrequency(&freq);
 
-    constexpr int BAUDRATE = 921600;
-    constexpr int FRAME_SIZE = 108;
-    // Tính toán số tick cần thiết cho 1 frame (108 byte * 10 bit/byte)
-    double secondsPerFrame = (double)(FRAME_SIZE * 10) / BAUDRATE;
-    int64_t ticksPerFrame = (int64_t)(secondsPerFrame * freq.QuadPart);
+    const int64_t guard_ticks = (int64_t)((double)freq.QuadPart* 10.0/ 1000000.0);
+    int64_t rem_acc = 0;
 
     uint16_t seq = 0;
-    LARGE_INTEGER start;
-    QueryPerformanceCounter(&start);
-    int64_t nextTick = start.QuadPart;
+    static uint8_t length = 100;
 
-    std::cout << "[SENDER] Starting...\n";
+    QueryPerformanceCounter(&now);
+    int64_t next_tick = now.QuadPart;
+    QueryPerformanceCounter(&start);
+
     while (seq < 50000) {
         QueryPerformanceCounter(&now);
-        if (now.QuadPart >= nextTick) {
+        int64_t remain = next_tick - now.QuadPart;
+
+        if (remain <= 0) {
             std::vector<uint8_t> tx_frame;
-            createFrame(tx_frame, seq);
+            createFrame(tx_frame, seq, length);
 
-            DWORD bytesWritten = 0;
-            bool ok = WriteFile(uart, tx_frame.data(), (DWORD)tx_frame.size(), &bytesWritten, NULL);
-
-            if (!ok) {
-                std::cerr << "Error writing to UART\n";
-            } else if (bytesWritten != tx_frame.size()) {
-                std::cerr << "Partial write to UART\n";
+            if (!uartSend(uart, tx_frame.data(), (uint32_t)tx_frame.size())) {
+                std::cerr << "Failed to send frame #" << seq << std::endl;
+                break;
             }
-            if (seq % 5000 == 0) std::cout << "Sent: " << seq << "\n";
-            
+
+            if (seq == 10000 || seq == 20000 || seq == 30000 || seq == 40000) {
+                std::cout << "Sent frame #" << seq << std::endl;
+            }
+
+            //TIMING 
+            int frame_byte = tx_frame.size();
+            g_total_BytesSend += frame_byte;
+            int frame_bits = frame_byte*10;
+            int64_t ticks_per_frame = (int64_t)freq.QuadPart * frame_bits / BAUDRATE;
+            int64_t tick_rem = (int64_t)freq.QuadPart * frame_bits % BAUDRATE;
             seq++;
-            nextTick += ticksPerFrame;
-        } else {
-            // Nếu còn xa deadline thì nhường CPU một chút
-            if (nextTick - now.QuadPart > freq.QuadPart / 1000) Sleep(1);
-            else SwitchToThread();
+            length++;
+
+            if(length >= 200) {
+                length = 100;
+            }
+
+            next_tick = now.QuadPart + ticks_per_frame + guard_ticks;
+            rem_acc += tick_rem;
+            if (rem_acc >= BAUDRATE) {
+                next_tick += 1;
+                rem_acc -= BAUDRATE;
+            } 
+        }
+        else {
+            if (remain > freq.QuadPart / 1000) {   
+                Sleep(0.01);
+            } else {
+                SwitchToThread();
+            }
         }
     }
-    std::cout << "[SENDER] Done 50000 frames.\n";
-    // std::this_thread::sleep_for(std::chrono::milliseconds(200)); // Đợi nốt dữ liệu về
-    keepRunning = false;
+    QueryPerformanceCounter(&last);
+    g_total_time = (double)(last.QuadPart - start.QuadPart)*1e6 / (double)freq.QuadPart;
 }
 
 void threadReceive(HANDLE uart) {
-    std::vector<uint8_t> readBuffer(4096);
-    std::vector<uint8_t> currentFrame;
-    currentFrame.reserve(108);
-    
-    enum State { WAIT_H1, WAIT_H2, RECEIVE_REST };
-    State state = WAIT_H1;
-    int bad = 0;
-    int good = 0;
+    while (true) {
+        std::vector<uint8_t> rx_frame;
+        bool ok_frameRecv = uartReceiveFrame(uart, rx_frame);
 
-    while (keepRunning) {
-        DWORD bytesRead = 0;
-        if (ReadFile(uart, readBuffer.data(), (DWORD)readBuffer.size(), &bytesRead, NULL) && bytesRead > 0) {
-            for (DWORD i = 0; i < bytesRead; i++) {
-                uint8_t b = readBuffer[i];
-                switch (state) {
-                    case WAIT_H1:
-                        if (b == 0xAA) {
-                            currentFrame.clear();
-                            currentFrame.push_back(b);
-                            state = WAIT_H2;
-                        }
-                        break;
-                    case WAIT_H2:
-                        if (b == 0x55) {
-                            currentFrame.push_back(b);
-                            state = RECEIVE_REST;
-                        } else if (b == 0xAA) {
-                            currentFrame.clear();
-                            currentFrame.push_back(b);
-                        } else {
-                            state = WAIT_H1;
-                        }
-                        break;
-                    case RECEIVE_REST:
-                        currentFrame.push_back(b);
-                        if (currentFrame.size() == 108) {
-                            if (checkFrame(currentFrame)) {
-                                good++;
-                                uint16_t seq = (uint16_t)currentFrame[2] | ((uint16_t)currentFrame[3] << 8);
-                                // if (good % 1000 == 0)
-                                // {
-                                //     std::cout << "OK frames: " << good << "Sequence: " << seq << "\n";
-                                // }
-                            } else {
-                                bad++;
-                                std::cout << "\nBAD FRAME: " << bad << "\n";
-                            }
-                            state = WAIT_H1;
-                        }
-                        break;
-                }
-            }
+        if (!ok_frameRecv) {
+            std::cout << "[RECV] UART read error." << std::endl;
+            break;
+        }
+
+        uint16_t seq = (uint16_t)rx_frame[2] | ((uint16_t)rx_frame[3] << 8);
+
+        addLogRow("RX", seq, true, badFrame.load(), "Received valid frame");
+        std::cout << "Received valid frame #" << seq << std::endl;
+        if (seq == 49999) {
+            std::cout << "Received last expected frame #" << seq << ". Stopping receiver." << std::endl;
+            break;
         }
     }
 }
 
 int main() {
-    HANDLE uart = initUART("\\\\.\\COM9", 921600);
-    if (uart == INVALID_HANDLE_VALUE) return -1;
+    HANDLE uart = initUART(PORT, BAUDRATE);
+    if (uart == INVALID_HANDLE_VALUE) {
+        return -1;
+    }
 
     std::thread sender(threadSend, uart);
     std::thread receiver(threadReceive, uart);
 
     sender.join();
     receiver.join();
+
+    if (saveLogsToCSV("uart_log.csv")) {
+        std::cout << "Saved CSV log: uart_log.csv" << std::endl;
+    } else {
+        std::cout << "Failed to save CSV log." << std::endl;
+    }
 
     CloseHandle(uart);
     return 0;

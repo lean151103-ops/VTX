@@ -1,4 +1,4 @@
-// Multi-threaded UART communication example in C++
+// Multi-threaded UART_loopback with fixed LENGTH payload
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
@@ -144,9 +144,6 @@ void createFrame(std::vector<uint8_t>& frame, const uint16_t seq) {
     frame.push_back(Header2);
     frame.push_back((uint8_t)(seq & 0xFF));
     frame.push_back((uint8_t)((seq >> 8) & 0xFF));
-
-    // static std::mt19937 rng((unsigned)std::random_device{}());
-    // static std::uniform_int_distribution<int> dist(0, 255);
 
     for (int i = 0; i < LEN_PAYLOAD; i++) {
         frame.push_back((uint8_t)i);
