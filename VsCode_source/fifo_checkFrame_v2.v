@@ -19,30 +19,40 @@ module fifo_checkFrame (
 
     localparam [2:0]
         S_IDLE                = 3'd0,
-        S_WAIT_H2             = 3'd1,
-        S_RECEIVE_SEQ         = 3'd2, 
-        S_RECEIVE_LEN         = 3'd3,
-        S_RECEIVE_PAYLOAD_CRC = 3'd4,
-        S_CHECK               = 3'd5;
+        S_RECEIVE_SEQ         = 3'd1, 
+        S_RECEIVE_LEN         = 3'd2,
+        S_RECEIVE_PAYLOAD_CRC = 3'd3,
+        S_CHECK               = 3'd4;
 
     reg [2:0] st;
-    reg [7:0] byte_cnt;
+    reg [7:0] byte_cnt =0;
     reg [31:0] crc_calc;
     reg [31:0] crc_rx;
+    reg [31:0] crc_final;
 
     reg [7:0] mem [0:511];
-    reg [AW:0] wptr;            
-    reg [AW:0] wptr_confirmed;  
-    reg [AW:0] rptr; 
+    reg [AW:0] wptr =0;            
+    reg [AW:0] wptr_confirmed =0;  
+    reg [AW:0] rptr =0; 
     
     reg [7:0] payload_stop; 
     reg [7:0] frame_stop;   
+    reg [7:0] length;
+    reg [15:0] header_reg;
 
     assign o_full  = (wptr[AW-1:0] == rptr[AW-1:0]) && (wptr[AW] != rptr[AW]);
     assign o_empty = (wptr_confirmed == rptr);
     assign o_data  = mem[rptr[AW-1:0]];
 
-    function [31:0] crc32_table;
+    function [31:0] initial_CRC;
+        input [31:0] current_crc;
+        input [7:0] data;
+        begin
+            initial_CRC = (current_crc >> 8) ^ crc32_table(current_crc[7:0] ^ data);
+        end
+    endfunction
+
+        function [31:0] crc32_table;
         input [7:0] idx;
         begin
             case (idx)
@@ -317,26 +327,15 @@ module fifo_checkFrame (
         end else begin
             case (st)
                 S_IDLE: begin
-                    if (i_wr_en && i_wr_data == H1 && !o_full) begin
-                        mem[wptr[AW-1:0]] <= H1;
-                        wptr     <= wptr + 1'b1;
-                        crc_calc <= (32'hFFFFFFFF >> 8) ^ crc32_table(8'hFF ^ H1);  
-                        byte_cnt <= 8'd1;
-                        st       <= S_WAIT_H2;
-                    end
-                end
-
-                S_WAIT_H2: begin
-                    if (i_wr_en) begin
-                        if (i_wr_data == H2 && !o_full) begin
-                            mem[wptr[AW-1:0]] <= H2;
-                            wptr     <= wptr + 1'b1;
-                            crc_calc <= (crc_calc >> 8) ^ crc32_table(crc_calc[7:0] ^ H2);
+                    if(i_wr_en && !o_full) begin
+                        header_reg <= {header_reg[7:0], i_wr_data};
+                        if(i_wr_data == 8'h55 && header_reg[7:0] == 8'hAA) begin
+                            mem[wptr[AW-1:0]] <= H1;
+                            mem[wptr + 1] <= H2;
+                            crc_calc <= initial_CRC(initial_CRC(32'hFFFFFFFF, 8'hAA), 8'h55);
                             byte_cnt <= 8'd2;
-                            st       <= S_RECEIVE_SEQ; 
-                        end else begin
-                            wptr <= wptr_confirmed; 
-                            st   <= S_IDLE;
+                            wptr <= wptr +2;
+                            st <= S_RECEIVE_SEQ;
                         end
                     end
                 end
@@ -362,7 +361,8 @@ module fifo_checkFrame (
                         byte_cnt <= byte_cnt + 1;
                         payload_stop <= 5 + i_wr_data;     
                         frame_stop   <= 8 + i_wr_data; 
-                        st <= S_RECEI_PAYLOAD_CRC;
+                        crc_rx <= 0;
+                        st <= S_RECEIVE_PAYLOAD_CRC;
                     end
                 end
 
@@ -391,6 +391,7 @@ module fifo_checkFrame (
 
                 S_CHECK: begin
                     if ((crc_calc ^ 32'hFFFFFFFF) == crc_rx) begin
+                        crc_final <= crc_calc ^ 32'hFFFFFFFF;
                         wptr_confirmed <= wptr; 
                         error_frame <= 2'b00;
                     end else begin
