@@ -51,7 +51,7 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1"
-                                    Orientation="Horizontal"
+                                    Orientation="Horizontal"    
                                     VerticalAlignment="Top">
                             <Border Background="#222C38"
                                     BorderBrush="#374252"
