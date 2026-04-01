@@ -5,24 +5,24 @@ module tb;
   // ================== CLOCK + UART LINE ==================
   reg sys_clock = 1'b0;
   reg i_rx_0    = 1'b1;       // UART idle = 1
-  reg o_tx_0    = 1'b1;
+  wire o_tx_0;                // N?u DUT có ??u ra TX
 
   // 125 MHz => toggle m?i 4ns
   always #4 sys_clock = ~sys_clock;
 
-  // 115200 baud => 1 bit ~ 8680.56 ns
-  localparam integer BIT_NS = 8681;
+  // Baudrate 
+  localparam integer BIT_NS = 1085;
 
   // ================== DUT ==================
   design_1_wrapper dut (
-    .clk_in1_0(sys_clock),
+    .sys_clock(sys_clock),
     .i_rx_0(i_rx_0)
-//    .TX_0(o_tx_0)
+    // .o_tx_0(o_tx_0) // C?m vào n?u c?n quan sát ph?n h?i
   );
 
   // ================== TEST DATA ==================
-  reg  [7:0]  payload_mem [0:99]; // 100 bytes
-  reg  [31:0] crc;                // ?? xem tr�n waveform
+  reg  [7:0]  payload_mem [0:255]; // T?ng lên 256 bytes ?? test ?a d?ng
+  reg  [31:0] crc_display;         // ?? quan sát trên waveform
   integer i;
 
   // ================== CRC32 (reflected) ==================
@@ -39,57 +39,53 @@ module tb;
     end
   endfunction
 
+  // Task tính CRC cho Frame: H1 + H2 + SEQ(2) + LEN(1) + PAYLOAD(len)
   task calc_crc_frame;
     input [15:0] seq;
+    input [7:0]  len;
     output [31:0] crc_out;
     integer j;
     reg [31:0] c;
     begin
-      // Initialize CRC
       c = 32'hFFFF_FFFF;
-
-      // CRC on header
       c = crc32_update_byte(c, 8'hAA);   // Header1
       c = crc32_update_byte(c, 8'h55);   // Header2
-
-      // CRC on SEQ (2 bytes, little-endian)
-      c = crc32_update_byte(c, seq[7:0]);
-      c = crc32_update_byte(c, seq[15:8]);
-
-      // CRC on payload (100 bytes)
-      for (j=0; j<100; j=j+1)
+      c = crc32_update_byte(c, seq[7:0]); // SEQ Low
+      c = crc32_update_byte(c, seq[15:8]);// SEQ High
+      c = crc32_update_byte(c, len);      // Byte Length (Quan tr?ng: ph?i có n?u code nh?n yêu c?u)
+      
+      for (j=0; j<len; j=j+1)
         c = crc32_update_byte(c, payload_mem[j]);
 
-      // Finalize CRC (reflected)
       crc_out = c ^ 32'hFFFF_FFFF;
     end
   endtask
 
   // ================== UART SEND 1 BYTE ==================
-    task uart_send_byte;
-      input [7:0] b;
-      integer n;
-      begin
-        i_rx_0 = 1'b0; #(BIT_NS);
-        for (n=0; n<8; n=n+1) begin
-          i_rx_0 = b[n];
-          #(BIT_NS);
-        end
-        i_rx_0 = 1'b1; #(BIT_NS);
+  task uart_send_byte;
+    input [7:0] b;
+    integer n;
+    begin
+      i_rx_0 = 1'b0; #(BIT_NS); // Start bit
+      for (n=0; n<8; n=n+1) begin
+        i_rx_0 = b[n];
+        #(BIT_NS);
       end
-    endtask
+      i_rx_0 = 1'b1; #(BIT_NS); // Stop bit
+    end
+  endtask
 
   // ================== SEND 1 FULL FRAME ==================
   task send_frame;
     input [15:0] seq;
+    input [7:0]  len; // ?? dài payload thay ??i
     reg   [31:0] c_local;
     integer j;
     begin
-      // Calculate CRC for the entire frame (Header + SEQ + Payload)
-      calc_crc_frame(seq, c_local);
-      crc = c_local; // Display CRC value in waveform
+      calc_crc_frame(seq, len, c_local);
+      crc_display = c_local;
 
-      $display("Send frame: SEQ=%h CRC=%h", seq, c_local);
+      $display("[%0t] Sending Frame: SEQ=%h, LEN=%d, CRC=%h", $time, seq, len, c_local);
 
       // Header
       uart_send_byte(8'hAA);
@@ -99,11 +95,14 @@ module tb;
       uart_send_byte(seq[7:0]);
       uart_send_byte(seq[15:8]);
 
-      // Payload 100 bytes
-      for (j=0; j<100; j=j+1)
+      // LENGTH byte
+      uart_send_byte(len);
+
+      // Payload (s? l??ng byte d?a trên tham s? len)
+      for (j=0; j<len; j=j+1)
         uart_send_byte(payload_mem[j]);
 
-      // CRC32 (4 bytes) LSB-first
+      // CRC32 (4 bytes) little-endian (LSB first)
       uart_send_byte(c_local[7:0]);
       uart_send_byte(c_local[15:8]);
       uart_send_byte(c_local[23:16]);
@@ -111,33 +110,29 @@ module tb;
     end
   endtask
 
-  // ================== MAIN ==================
+  // ================== MAIN TEST ==================
   initial begin
+    // Reset ban ??u
+    i_rx_0 = 1'b1;
+    #(1000);
 
-    // -------- FRAME 1 --------
-    for (i=0; i<100; i=i+1)
-      payload_mem[i] = i[7:0];
+    // -------- FRAME 1: Payload 50 bytes --------
+    for (i=0; i<50; i=i+1) payload_mem[i] = i[7:0];
+    #(100_000); 
+    send_frame(16'h0001, 8'd3);
 
-    #(1_000_000); // 1ms
-    send_frame(16'h0001);
+    // -------- FRAME 2: Payload 120 bytes --------
+    #(20_000); 
+    for (i=0; i<120; i=i+1) payload_mem[i] = (i + 8'h10);
+    send_frame(16'h0002, 8'd4);
 
-    // -------- FRAME 2 --------
-    #(5_000_000); // 5ms gap
+    // -------- FRAME 3: Payload 200 bytes --------
+    #(20_000);
+    for (i=0; i<200; i=i+1) payload_mem[i] = (i + 8'h20);
+    send_frame(16'h0003, 8'd5);
 
-    for (i=0; i<100; i=i+1)
-      payload_mem[i] = (i + 8'h40) & 8'hFF;
-
-    send_frame(16'h0002);
-
-    // -------- FRAME 3 --------
-    #(5_000_000); // 5ms gap
-
-    for (i=0; i<100; i=i+1)
-      payload_mem[i] = (i + 8'h80) & 8'hFF;
-
-    send_frame(16'h0003);
-
-    #(10_000_000); // ch? x? l� xong
+    #(500_000);
+    $display("Testbench finished at %0t", $time);
     $finish;
   end
 

@@ -14,22 +14,30 @@
 #include <ctime>
 
 const int BAUDRATE = 1500000;
-const char PORT[] = "\\\\.\\COM9";
+const char PORT[] = "\\\\.\\COM5";
 
 const uint32_t POLYMINAl = 0xEDB88320u;
 std::mutex uartMutex; // Mutex to protect UART access in multi-threaded environment
 std::mutex logMutex;
 std::atomic<long long> g_total_BytesSend{0};
 double g_total_time = 0;
-struct logRow {
-    std::string direction;
+
+struct txLogRow {
     int seq;
+    int payloadLength;
+    std::string note;
+};
+
+struct rxLogRow {
+    int seq;
+    int payloadLength;
     bool valid;
     int badFrameCount;
     std::string note;
 };
 
-std::vector<logRow> g_logs;
+std::vector<txLogRow> g_txLogs;
+std::vector<rxLogRow> g_rxLogs;
 std::atomic<int> badFrame{0};
 
 // This fucntion setting and init UART COMM
@@ -64,6 +72,87 @@ HANDLE initUART(const char* portName, int baudrate){
     return hSerial;
 }
 
+// ================= Time + CSV Log =================
+std::string csvEscape(const std::string& s) {
+    std::string out = "\"";
+    for (char c : s) {
+        if (c == '"') {
+            out += "\"\"";
+        } else {
+            out += c;
+        }
+    }
+    out += "\"";
+    return out;
+}
+
+void addTxLogRow(int seq, int payloadLength, const std::string& note) {
+    std::lock_guard<std::mutex> lock(logMutex);
+    g_txLogs.push_back(txLogRow{ seq, payloadLength, note });
+}
+
+void addRxLogRow(int seq, int payloadLength, bool valid, int badCnt, const std::string& note) {
+    std::lock_guard<std::mutex> lock(logMutex);
+    g_rxLogs.push_back(rxLogRow{ seq, payloadLength, valid, badCnt, note });
+}
+
+bool saveTxLogsToCSV(const char* filename) {
+    std::ofstream out(filename, std::ios::out | std::ios::trunc);
+    if (!out.is_open()) return false;
+
+    out << "TX_Direction,TX_Seq,TX_PayloadLength,Note\n";
+
+    {
+        std::lock_guard<std::mutex> lock(logMutex);
+        for (const auto& r : g_txLogs) {
+            out << csvEscape("TX") << ","
+                << r.seq << ","
+                << r.payloadLength << ","
+                << csvEscape(r.note) << "\n";
+        }
+    }
+
+    double total_sec = g_total_time / 1e6;
+    double data_rate_bps = (total_sec > 0) ? (g_total_BytesSend.load()) / total_sec : 0;
+    double data_rate_kbps = (total_sec > 0) ? (g_total_BytesSend.load() / 1024.0) / total_sec : 0;
+
+    out << "\n--- SUMMARY ---\n";
+    out << "Metric,Value,Unit\n";
+    out << "Total Time," << total_sec << ",Seconds\n";
+    out << "Total Bytes Sent," << g_total_BytesSend.load() << ",Bytes\n";
+    out << "Throughput (byte/s)," << data_rate_bps << ",Bps\n";
+    out << "Throughput (KB/s)," << data_rate_kbps << ",KBps\n";
+    out << "Total Bad Frames," << badFrame.load() << ",Frames\n";
+
+    out.close();
+    return true;
+}
+
+bool saveRxLogsToCSV(const char* filename) {
+    std::ofstream out(filename, std::ios::out | std::ios::trunc);
+    if (!out.is_open()) return false;
+
+    out << "RX_Direction,RX_Seq,RX_PayloadLength,Valid,BadFrameCount,Note\n";
+
+    {
+        std::lock_guard<std::mutex> lock(logMutex);
+        for (const auto& r : g_rxLogs) {
+            out << csvEscape("RX") << ","
+                << r.seq << ","
+                << r.payloadLength << ","
+                << csvEscape(r.valid ? "OK" : "FAIL") << ","
+                << r.badFrameCount << ","
+                << csvEscape(r.note) << "\n";
+        }
+    }
+
+    out << "\n--- SUMMARY ---\n";
+    out << "Metric,Value,Unit\n";
+    out << "Total Bad Frames," << badFrame.load() << ",Frames\n";
+
+    out.close();
+    return true;
+}
 
 // Calculating CRC of data and then packaging in Frame
 uint32_t crc32(const uint8_t data[], size_t length) {
@@ -97,58 +186,6 @@ uint32_t pack_crc32_lte(const uint8_t* buffer) {
             );
 }
 
-// ================= Time + CSV Log =================
-std::string csvEscape(const std::string& s) {
-    std::string out = "\"";
-    for (char c : s) {
-        if (c == '"') {
-            out += "\"\"";
-        } else {
-            out += c;
-        }
-    }
-    out += "\"";
-    return out;
-}
-
-void addLogRow(const char* direction, int seq, bool valid, int badCnt, const std::string& note) {
-    std::lock_guard<std::mutex> lock(logMutex);
-    g_logs.push_back(logRow{ direction, seq, valid, badCnt, note });
-}
-
-bool saveLogsToCSV(const char* filename) {
-    std::ofstream out(filename, std::ios::out | std::ios::trunc);
-    if (!out.is_open()) {
-        return false;
-    }
-
-    out << "Direction,Seq,Valid,BadFrameCount,Note\n";
-
-    std::lock_guard<std::mutex> lock(logMutex);
-    for (const auto& r : g_logs) {
-        out << csvEscape(r.direction) << ","
-            << r.seq << ","
-            << csvEscape(r.valid ? "OK" : "FAIL") << ","
-            << r.badFrameCount << ","
-            << csvEscape(r.note) << "\n";
-    }
-
-    double total_sec = g_total_time / 1e6;
-    double data_rate_bps = (total_sec > 0) ? (g_total_BytesSend) / total_sec : 0;
-    double data_rate_kbps = (total_sec > 0) ? (g_total_BytesSend / 1024.0) / total_sec : 0;
-
-    out << "\n--- SUMMARY ---\n";
-    out << "Metric,Value,Unit\n";
-    out << "Total Time," << total_sec << ",Seconds\n";
-    out << "Total Bytes Sent," << g_total_BytesSend << ",Bytes\n";
-    out << "Throughput (byte/s)," << data_rate_bps << ",bps\n";
-    out << "Throughput (KB/s)," << data_rate_kbps << ",KB/s\n";
-    out << "Total Bad Frames(Frame)," << badFrame.load() << ",Frames\n";
-
-    out.close();
-    return true;
-}
-
 // Creating frame for sending: (2 header | 2 seq | 100 payload | 4 crc) = 108 bytes
 void createFrame(std::vector<uint8_t>& frame, const uint16_t seq, uint8_t LENGTH) {
     frame.clear();
@@ -174,6 +211,11 @@ void createFrame(std::vector<uint8_t>& frame, const uint16_t seq, uint8_t LENGTH
     // Now frame contains the complete data to be sent over UART    
 }
 
+bool uartSend(HANDLE hSerial, const uint8_t* data, uint32_t len) {
+    DWORD bytesWritten = 0;
+    // std::lock_guard<std::mutex> lock(uartMutex);
+    return WriteFile(hSerial, data, len, &bytesWritten, NULL) && (bytesWritten == len);
+}
 
 // Checking the received frame for correct header and crc (RECV task)
 bool checkFrame(const std::vector<uint8_t>& recvFrame, uint8_t length) {
@@ -185,12 +227,6 @@ bool checkFrame(const std::vector<uint8_t>& recvFrame, uint8_t length) {
     uint32_t crc_calculated = crc32(&recvFrame[0], frameSize - 4);
     if(crc_rx != crc_calculated) return false;
     return true;
-}
-
-bool uartSend(HANDLE hSerial, const uint8_t* data, uint32_t len) {
-    DWORD bytesWritten = 0;
-    // std::lock_guard<std::mutex> lock(uartMutex);
-    return WriteFile(hSerial, data, len, &bytesWritten, NULL) && (bytesWritten == len);
 }
 
 bool uartReadByte(HANDLE hSerial, uint8_t& byte) {
@@ -276,7 +312,7 @@ bool uartReceiveFrame(HANDLE hSerial, std::vector<uint8_t>& frame) {
                         }
                         badFrame++;
                         std::cout << "[RECV] Bad frame count = " << badFrame << std::endl;
-                        addLogRow("RX", seqBad, false, badFrame, "Bad frame / CRC error");
+                        addRxLogRow(seqBad, length, false, badFrame.load(), "Bad frame / CRC error");
                         frame.clear();
                         state = WAIT_H1;
                     }
@@ -300,7 +336,7 @@ void threadSend(HANDLE uart) {
     int64_t next_tick = now.QuadPart;
     QueryPerformanceCounter(&start);
 
-    while (seq < 50000) {
+    while (seq < 5000) {
         QueryPerformanceCounter(&now);
         int64_t remain = next_tick - now.QuadPart;
 
@@ -313,9 +349,7 @@ void threadSend(HANDLE uart) {
                 break;
             }
 
-            if (seq == 10000 || seq == 20000 || seq == 30000 || seq == 40000) {
-                std::cout << "Sent frame #" << seq << std::endl;
-            }
+            addTxLogRow(seq, length, "Frame sent");
 
             //TIMING 
             int frame_byte = tx_frame.size();
@@ -360,10 +394,11 @@ void threadReceive(HANDLE uart) {
         }
 
         uint16_t seq = (uint16_t)rx_frame[2] | ((uint16_t)rx_frame[3] << 8);
+        uint8_t payloadLength = rx_frame[4];
 
-        addLogRow("RX", seq, true, badFrame.load(), "Received valid frame");
+        addRxLogRow(seq, payloadLength, true, badFrame.load(), "Received valid frame");
         std::cout << "Received valid frame #" << seq << std::endl;
-        if (seq == 49999) {
+        if (seq == 4999) {
             std::cout << "Received last expected frame #" << seq << ". Stopping receiver." << std::endl;
             break;
         }
@@ -382,10 +417,16 @@ int main() {
     sender.join();
     receiver.join();
 
-    if (saveLogsToCSV("uart_log.csv")) {
-        std::cout << "Saved CSV log: uart_log.csv" << std::endl;
+    if (saveTxLogsToCSV("tx_log.csv")) {
+        std::cout << "Saved TX CSV log: tx_log.csv" << std::endl;
     } else {
-        std::cout << "Failed to save CSV log." << std::endl;
+        std::cout << "Failed to save TX CSV log." << std::endl;
+    }
+
+    if (saveRxLogsToCSV("rx_log.csv")) {
+        std::cout << "Saved RX CSV log: rx_log.csv" << std::endl;
+    } else {
+        std::cout << "Failed to save RX CSV log." << std::endl;
     }
 
     CloseHandle(uart);
