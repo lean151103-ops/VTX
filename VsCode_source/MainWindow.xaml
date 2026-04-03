@@ -1,15 +1,14 @@
-<Window x:Class="GNDServer2.MainWindow"
+<Window x:Class="GNDServer_v2.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:s="http://schemas.abtsoftware.co.uk/scichart"
         Title="Telemetry Dashboard"
         Width="1800"
-        Height="900"
+        Height="1000"
         Background="#1F2733"
         WindowStartupLocation="CenterScreen">
 
     <Grid Background="#1F2733">
-
         <TabControl Margin="0"
                     Background="#273240"
                     Foreground="White"
@@ -45,14 +44,14 @@
                                   HorizontalScrollBarVisibility="Disabled">
                         <Grid Background="#1F2733">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="0.6*"/>
+                                <ColumnDefinition Width="0.8*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
                             <Grid Grid.Column="0"
                                     Background="#273240"
-                                    Margin="5,0,10,0">
+                                    Margin="0,0,10,0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="2*" />
                                     <RowDefinition Height="*" />
@@ -64,8 +63,8 @@
                                 </Border>
 
                                 <Border Grid.Row="1"
-                                Margin="0,5,0,0"
-                                Background="#1F2733">
+                                        Margin="0,5,0,0"
+                                        Background="#1F2733">
                                     <DockPanel LastChildFill="True">
 
                                         <Border DockPanel.Dock="Top"
@@ -80,12 +79,70 @@
                                                         TextAlignment="Center"/>
                                         </Border>
 
-                                        <UniformGrid Rows="2">
-                                            <Border Margin="0,0,0,5"
-                                                    Background="#354152"/>
-                                            <Border Background="#3B4758"/>
-                                        </UniformGrid>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
 
+                                            <Grid Grid.Row="0"
+                                                  Background="#1B2430">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="395*"/>
+                                                    <ColumnDefinition Width="189*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock  Text="{Binding LapTimeText}"
+                                                            Foreground="#D6DEE8"
+                                                            FontSize="30"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Center" Margin="292,0,0,0"/>
+                                            </Grid>
+
+                                            <Border Grid.Row="1"
+                                                    Background="#1B2430"
+                                                    BorderBrush="#2F3B4A"
+                                                    BorderThickness="1,1,0,0">
+                                                <s:SciChartSurface  x:Name="LapTrackChart"
+                                                                    Background="#1B2430"
+                                                                    Padding="0"
+                                                                    BorderThickness="0">
+                                                    <s:SciChartSurface.XAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       VisibleRange="0,4500"
+                                                                       AxisTitle="Distance along Track"
+                                                                       TextFormatting="#,##0 'm'"
+                                                                       DrawMajorBands="False"
+                                                                       DrawMinorGridLines="False"
+                                                                       DrawMajorGridLines="True"
+                                                                       DrawMinorTicks="False"
+                                                                       DrawMajorTicks="True"/>
+                                                    </s:SciChartSurface.XAxis>
+                                                    <s:SciChartSurface.YAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       VisibleRange="-0.2,0.2"
+                                                                       DrawLabels="False"
+                                                                       DrawMajorBands="False"
+                                                                       DrawMinorGridLines="False"
+                                                                       DrawMajorGridLines="False"
+                                                                       DrawMinorTicks="False"
+                                                                       DrawMajorTicks="False"/>
+                                                    </s:SciChartSurface.YAxis>
+
+                                                    <!-- <s:FastLineRenderableSeries x:Name="TrackBaseSeries"
+                                                                                Stroke="#AEB7C2"
+                                                                                StrokeThickness="2"/> -->
+                                                    <!-- Tracking car position -->
+                                                    <!-- <s:XyScatterRenderableSeries x:Name="CarMarkerSeries">
+                                                        <s:XyScatterRenderableSeries.PointMarker>
+                                                            <s:EllipsePointMarker Width="10"
+                                                                                  Height="10"
+                                                                                  Fill="#6FA8DC"
+                                                                                  Stroke="#6FA8DC"/>
+                                                        </s:XyScatterRenderableSeries.PointMarker> 
+                                                    </s:XyScatterRenderableSeries> -->
+                                                </s:SciChartSurface>
+                                            </Border>
+                                        </Grid>
                                     </DockPanel>
                                 </Border>
                             </Grid>
@@ -106,31 +163,569 @@
                                 <Border Grid.Row="1"
                                         Margin="0,5,0,0"
                                         Background="#2E3A4A">
-                                    <UniformGrid Rows="2">
-                                        <Border Margin="0,0,0,5"
-                                                Background="#354152"/>
-                                        <Border Background="#3B4758"/>
-                                    </UniformGrid>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- SPEED -->
+                                        <Border Grid.Row="0"
+                                                Margin="0,0,0,5"
+                                                Background="#1E252B">
+                                            <DockPanel LastChildFill="True">
+                                                <!-- Header -->
+                                                <Border DockPanel.Dock="Top"
+                                                        Height="20"
+                                                        Background="#1E252B"
+                                                        BorderBrush="#2A3440"
+                                                        BorderThickness="0,0,0,1">
+                                                    <TextBlock Text="Speed"
+                                                               Foreground="White"
+                                                               FontSize="10"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Border>
+
+                                                <!-- Chart -->
+                                                <s:SciChartSurface x:Name="SpeedChart"
+                                                                   Background="#1E252B"
+                                                                   BorderThickness="0">
+
+                                                    <s:SciChartSurface.XAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       VisibleRange="0,100"
+                                                                       MajorDelta="20"
+                                                                       MinorDelta="10"
+                                                                       DrawMajorBands="False"
+                                                                       DrawMajorGridLines="False"
+                                                                       DrawMinorGridLines="False"
+                                                                       DrawLabels="True"
+                                                                       TextFormatting="0 'm/s'"
+                                                                       TickTextBrush="White"/>
+                                                    </s:SciChartSurface.XAxis>
+
+                                                    <s:SciChartSurface.YAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       VisibleRange="0,1"
+                                                                       Visibility="Collapsed"
+                                                                       DrawMajorBands="False"
+                                                                       DrawMajorGridLines="False"
+                                                                       DrawMinorGridLines="False"/>
+                                                    </s:SciChartSurface.YAxis>
+
+                                                    <s:SciChartSurface.Annotations>
+                                                        <!-- thanh fill -->
+                                                        <s:BoxAnnotation x:Name="SpeedBar"
+                                                                        X1="0"
+                                                                        X2="65"
+                                                                        Y1="0.25"
+                                                                        Y2="0.95"
+                                                                        Background="#5E9BB3"
+                                                                        BorderBrush="#5E9BB3"/>
+
+                                                        <!-- text giá trị -->
+                                                        <s:TextAnnotation x:Name="SpeedValueText"
+                                                                          X1="66"
+                                                                          Y1="0.60"
+                                                                          Text="65 m/s"
+                                                                          Foreground="#7F8B97"
+                                                                          FontSize="10"
+                                                                          HorizontalAnchorPoint="Left"
+                                                                          VerticalAnchorPoint="Center"/>
+                                                    </s:SciChartSurface.Annotations>
+                                                </s:SciChartSurface>
+                                            </DockPanel>
+                                        </Border>
+
+                                        <!-- RPM -->
+                                        <Border Grid.Row="1"
+                                                Margin="0,0,0,5"
+                                                Background="#1E252B">
+                                            <DockPanel LastChildFill="True">
+                                                <!-- Header -->
+                                                <Border DockPanel.Dock="Top"
+                                                        Height="20"
+                                                        Background="#1E252B"
+                                                        BorderBrush="#2A3440"
+                                                        BorderThickness="0,0,0,1">
+                                                    <TextBlock Text="RPM"
+                                                               Foreground="White"
+                                                               FontSize="10"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Border>
+
+                                                <!-- Chart -->
+                                                <s:SciChartSurface x:Name="RPMChart"
+                                                                   Background="#1E252B"
+                                                                   BorderThickness="0">
+                                                    <s:SciChartSurface.XAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       VisibleRange="0,100"
+                                                                       MajorDelta="20"
+                                                                       MinorDelta="10"
+                                                                       DrawMajorBands="False"
+                                                                       DrawMajorGridLines="False"
+                                                                       DrawMinorGridLines="False"
+                                                                       DrawLabels="True"
+                                                                       TextFormatting="0 'm/s'"
+                                                                       TickTextBrush="White"/>
+                                                    </s:SciChartSurface.XAxis>
+
+                                                    <s:SciChartSurface.YAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       VisibleRange="0,1"
+                                                                       Visibility="Collapsed"
+                                                                       DrawMajorBands="False"
+                                                                       DrawMajorGridLines="False"
+                                                                       DrawMinorGridLines="False"/>
+                                                    </s:SciChartSurface.YAxis>
+
+                                                    <s:SciChartSurface.Annotations>
+                                                        <!-- thanh fill -->
+                                                        <s:BoxAnnotation    x:Name="RPMBar"
+                                                                            X1="0"
+                                                                            X2="65"
+                                                                            Y1="0.25"
+                                                                            Y2="0.95"
+                                                                            Background="#5E9BB3"
+                                                                            BorderBrush="#5E9BB3"/>
+                                                        <!-- text giá trị -->
+                                                        <s:TextAnnotation x:Name="RPMValueText"
+                                                                          X1="66"
+                                                                          Y1="0.60"
+                                                                          Text="65 m/s"
+                                                                          Foreground="#7F8B97"
+                                                                          FontSize="10"
+                                                                          HorizontalAnchorPoint="Left"
+                                                                          VerticalAnchorPoint="Center"/>
+                                                    </s:SciChartSurface.Annotations>
+                                                </s:SciChartSurface>
+                                            </DockPanel>
+                                        </Border>
+
+                                        <!-- Steering -->
+                                        <Border Grid.Row="2"
+                                                Margin="0,0,0,5"
+                                                Background="#1E252B">
+                                            <DockPanel LastChildFill="True">
+                                                <!-- Header -->
+                                                <Border DockPanel.Dock="Top"
+                                                        Height="20"
+                                                        Background="#1E252B"
+                                                        BorderBrush="#2A3440"
+                                                        BorderThickness="0,0,0,1">
+                                                    <TextBlock Text="Steering"
+                                                               Foreground="White"
+                                                               FontSize="10"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Border>
+
+                                                <!-- Chart -->
+                                                <s:SciChartSurface x:Name="SteeringChart"
+                                                                   Background="#1E252B"
+                                                                   BorderThickness="0">
+                                                    <s:SciChartSurface.XAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       VisibleRange="0,100"
+                                                                       MajorDelta="20"
+                                                                       MinorDelta="10"
+                                                                       DrawMajorBands="False"
+                                                                       DrawMajorGridLines="False"
+                                                                       DrawMinorGridLines="False"
+                                                                       DrawLabels="True"
+                                                                       TextFormatting="0 'm/s'"
+                                                                       TickTextBrush="White"/>
+                                                    </s:SciChartSurface.XAxis>
+
+                                                    <s:SciChartSurface.YAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       VisibleRange="0,1"
+                                                                       Visibility="Collapsed"
+                                                                       DrawMajorBands="False"
+                                                                       DrawMajorGridLines="False"
+                                                                       DrawMinorGridLines="False"/>
+                                                    </s:SciChartSurface.YAxis>
+
+                                                    <s:SciChartSurface.Annotations>
+                                                        <!-- thanh fill -->
+                                                        <s:BoxAnnotation    x:Name="SteeringBar"
+                                                                            X1="0"
+                                                                            X2="65"
+                                                                            Y1="0.25"
+                                                                            Y2="0.95"
+                                                                            Background="#5E9BB3"
+                                                                            BorderBrush="#5E9BB3"/>
+                                                        <!-- text giá trị -->
+                                                        <s:TextAnnotation x:Name="SteeringValueText"
+                                                                          X1="66"
+                                                                          Y1="0.60"
+                                                                          Text="65 m/s"
+                                                                          Foreground="#7F8B97"
+                                                                          FontSize="10"
+                                                                          HorizontalAnchorPoint="Left"
+                                                                          VerticalAnchorPoint="Center"/>
+                                                    </s:SciChartSurface.Annotations>
+                                                </s:SciChartSurface>
+                                            </DockPanel>
+                                        </Border>
+                                    </Grid>
                                 </Border>
 
                                 <Border Grid.Row="2"
-                                        Margin="0,5,0,0"
+                                        Margin="0,10,0,0"
                                         Background="#3B4758">
+                                    <DockPanel LastChildFill="True">
+                                        <Border DockPanel.Dock="Top"
+                                                Height="auto"
+                                                Margin="0,0,0,5"
+                                                Background="#2E3A4A">
+                                            <TextBlock Text="Raw Telemetry Data"
+                                                   Foreground="White"
+                                                   FontSize="15"
+                                                   HorizontalAlignment="Left"
+                                                   VerticalAlignment="Center"
+                                                   TextAlignment="Left"/>
+                                        </Border>
+                                        <Grid>
+                                            <StackPanel Orientation="Vertical">
+                                                <TextBlock  Foreground="White"
+                                                            FontSize="15"
+                                                            Margin="0,10,0,0">
+                                                    <Run Text="speed_car = "/>
+                                                    <Run Text="{Binding Velocity}"/>
+                                                    <Run Text="     (km/h)"/>
+                                                </TextBlock>
+
+                                                <TextBlock  Foreground="White"
+                                                            FontSize="15"
+                                                            Margin="0,10,0,0">
+                                                    <Run Text="RPM = "/>
+                                                    <Run Text="{Binding RPM}"/>
+                                                    <Run Text="     (rpm)"/>
+                                                </TextBlock>
+                                                <TextBlock  Foreground="White"
+                                                            FontSize="15"
+                                                            Margin="0,10,0,0">
+                                                    <Run Text="Throttle Pedal = "/>
+                                                    <Run Text="{Binding Throttle}"/>
+                                                    <Run Text="     (%)"/>
+                                                </TextBlock>
+                                                <TextBlock  Foreground="White"
+                                                            FontSize="15"
+                                                            Margin="0,10,0,0">
+                                                    <Run Text="Brake Pedal = "/>
+                                                    <Run Text="{Binding Brake}"/>
+                                                    <Run Text="     (%)"/>
+                                                </TextBlock>
+                                                <TextBlock  Foreground="White"
+                                                            FontSize="15"
+                                                            Margin="0,10,0,0">
+                                                    <Run Text="Temp_BrakeDisc = "/>
+                                                    <Run Text="{Binding Velocity}"/>
+                                                    <Run Text="     (oC)"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DockPanel>
                                 </Border>
                             </Grid>
 
                             <Grid Grid.Column="2"
                                     Background="#273240"
-                                    Margin="5,0,10,0">
+                                    Margin="5,0,0,0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="2*" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0"
+                                <Grid Grid.Row="0"
                                         Margin ="0,0,0,0"
                                         Background="#2E3A4A">
-                                </Border>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="0.4*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid Grid.Column="0" Margin="0,0,10,0">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <Border Grid.Row="0" Margin="0,0,0,0" Background="#3B4758">
+                                                <StackPanel>
+                                                    <!-- nhiệt độ bar -->
+                                                    <StackPanel Margin="0,0,0,8">
+                                                        <TextBlock Text="brakes_temp"
+                                                                   Foreground="White"
+                                                                   FontSize="10"
+                                                                   Margin="0,0,0,4"/>
+                                                        <StackPanel Orientation="Horizontal"
+                                                                    Margin="0,0,0,4">
+                                                            <Border Width="18" Height="10" Background="#00D7D7" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#42D7D0" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#8ED38B" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#D9C85D" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#F0A35E" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#E97A83" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#D95C8A" Margin="0,0,2,0"/>
+                                                            <Border Width="10" Height="10" Background="#D9D9D9"/>
+                                                        </StackPanel>
+
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Border Background="#2A3440"
+                                                                    BorderBrush="#556070"
+                                                                    BorderThickness="1"
+                                                                    Padding="6,1"
+                                                                    Margin="0,0,4,0">
+                                                                <TextBlock Text="30 C"
+                                                                           Foreground="White"
+                                                                           FontSize="10"/>
+                                                            </Border>
+                                                            <Border Background="#2A3440"
+                                                                    BorderBrush="#556070"
+                                                                    BorderThickness="1"
+                                                                    Padding="6,1"
+                                                                    Margin="0,0,4,0">
+                                                                <TextBlock Text="500 C"
+                                                                           Foreground="White"
+                                                                           FontSize="10"/>
+                                                            </Border>
+                                                            <Border Background="#2A3440"
+                                                                    BorderBrush="#556070"
+                                                                    BorderThickness="1"
+                                                                    Padding="6,1">
+                                                                <TextBlock Text="800 C"
+                                                                           Foreground="White"
+                                                                           FontSize="10"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <!-- Title -->
+                                                    <TextBlock Text="Brakes Temperature"
+                                                               Foreground="White"
+                                                               FontSize="12"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Bottom"
+                                                               Margin="0,0,0,6"/>
+                                                    <!-- 2x2 -->
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="120"/>
+                                                            <RowDefinition Height="120"/>
+                                                        </Grid.RowDefinitions>
+
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <!-- FL -->
+                                                        <Border Grid.Row="0"
+                                                                Grid.Column="0"
+                                                                BorderBrush="Black"
+                                                                BorderThickness="1"
+                                                                Background="{Binding BrakeFLBrush}">
+                                                            <StackPanel Margin="6">
+                                                                <TextBlock Text="FL"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+                                                                <TextBlock  Text="{Binding BrakeFLTemp, StringFormat={}{0} °C}"
+                                                                            Foreground="Black"
+                                                                            FontSize="12"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <!-- FR -->
+                                                        <Border Grid.Row="0"
+                                                                Grid.Column="1"
+                                                                BorderBrush="Black"
+                                                                BorderThickness="1"
+                                                                Background="{Binding BrakeFRBrush}">
+                                                            <StackPanel Margin="6">
+                                                                <TextBlock Text="FR"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+                                                                <TextBlock Text="{Binding BrakeFRTemp, StringFormat={}{0} °C}"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <!-- RL -->
+                                                        <Border Grid.Row="1"
+                                                                Grid.Column="0"
+                                                                BorderBrush="Black"
+                                                                BorderThickness="1"
+                                                                Background="{Binding BrakeRLBrush}">
+                                                            <StackPanel Margin="6">
+                                                                <TextBlock Text="RL"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+                                                                <TextBlock Text="{Binding BrakeRLTemp, StringFormat={}{0} °C}"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <!-- RR -->
+                                                        <Border Grid.Row="1"
+                                                                Grid.Column="1"
+                                                                BorderBrush="Black"
+                                                                BorderThickness="1"
+                                                                Background="{Binding BrakeRRBrush}">
+                                                            <StackPanel Margin="6">
+                                                                <TextBlock Text="RR"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+                                                                <TextBlock Text="{Binding BrakeRRTemp, StringFormat={}{0} °C}"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Grid.Row="1" Margin="0,0,0,0" Background="#3B4758">
+                                                <StackPanel>
+                                                    <!-- nhiệt độ bar -->
+                                                    <StackPanel Margin="0,0,0,8">
+                                                        <TextBlock Text="tire_temp"
+                                                                   Foreground="White"
+                                                                   FontSize="10"
+                                                                   Margin="0,0,0,4"/>
+                                                        <StackPanel Orientation="Horizontal"
+                                                                    Margin="0,0,0,4">
+                                                            <Border Width="18" Height="10" Background="#00D7D7" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#42D7D0" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#8ED38B" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#D9C85D" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#F0A35E" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#E97A83" Margin="0,0,2,0"/>
+                                                            <Border Width="18" Height="10" Background="#D95C8A" Margin="0,0,2,0"/>
+                                                            <Border Width="10" Height="10" Background="#D9D9D9"/>
+                                                        </StackPanel>
+
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Border Background="#2A3440"
+                                                                    BorderBrush="#556070"
+                                                                    BorderThickness="1"
+                                                                    Padding="6,1"
+                                                                    Margin="0,0,4,0">
+                                                                <TextBlock Text="30 C"
+                                                                           Foreground="White"
+                                                                           FontSize="10"/>
+                                                            </Border>
+                                                            <Border Background="#2A3440"
+                                                                    BorderBrush="#556070"
+                                                                    BorderThickness="1"
+                                                                    Padding="6,1"
+                                                                    Margin="0,0,4,0">
+                                                                <TextBlock Text="500 C"
+                                                                           Foreground="White"
+                                                                           FontSize="10"/>
+                                                            </Border>
+                                                            <Border Background="#2A3440"
+                                                                    BorderBrush="#556070"
+                                                                    BorderThickness="1"
+                                                                    Padding="6,1">
+                                                                <TextBlock Text="800 C"
+                                                                           Foreground="White"
+                                                                           FontSize="10"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <!-- Title -->
+                                                    <TextBlock Text="Tires Temperature"
+                                                               Foreground="White"
+                                                               FontSize="12"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Bottom"
+                                                               Margin="0,0,0,6"/>
+                                                    <!-- 2x2 -->
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="120"/>
+                                                            <RowDefinition Height="120"/>
+                                                        </Grid.RowDefinitions>
+
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <!-- FL -->
+                                                        <Border Grid.Row="0"
+                                                                Grid.Column="0"
+                                                                BorderBrush="Black"
+                                                                BorderThickness="1"
+                                                                Background="{Binding TireFLBrush}">
+                                                            <StackPanel Margin="6">
+                                                                <TextBlock Text="FL"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+                                                                <TextBlock  Text="{Binding TireFLTemp, StringFormat={}{0} °C}"
+                                                                            Foreground="Black"
+                                                                            FontSize="12"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <!-- FR -->
+                                                        <Border Grid.Row="0"
+                                                                Grid.Column="1"
+                                                                BorderBrush="Black"
+                                                                BorderThickness="1"
+                                                                Background="{Binding TireFRBrush}">
+                                                            <StackPanel Margin="6">
+                                                                <TextBlock Text="FR"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+                                                                <TextBlock Text="{Binding TireFRTemp, StringFormat={}{0} °C}"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <!-- RL -->
+                                                        <Border Grid.Row="1"
+                                                                Grid.Column="0"
+                                                                BorderBrush="Black"
+                                                                BorderThickness="1"
+                                                                Background="{Binding TireRLBrush}">
+                                                            <StackPanel Margin="6">
+                                                                <TextBlock Text="RL"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+                                                                <TextBlock Text="{Binding TireRLTemp, StringFormat={}{0} °C}"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <!-- RR -->
+                                                        <Border Grid.Row="1"
+                                                                Grid.Column="1"
+                                                                BorderBrush="Black"
+                                                                BorderThickness="1"
+                                                                Background="{Binding TireRRBrush}">
+                                                            <StackPanel Margin="6">
+                                                                <TextBlock Text="RR"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+                                                                <TextBlock Text="{Binding TireRRTemp, StringFormat={}{0} °C}"
+                                                                           Foreground="Black"
+                                                                           FontSize="12"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </Grid>
+                                </Grid>
 
                                 <Border Grid.Row="1"
                                         Margin="0,5,0,0"
@@ -160,10 +755,36 @@
                                                                TextAlignment="Center"/>
                                                 </Border>
 
-                                                <Border Margin="0,0,0,5"
-                                                        Background="#354152"/>
-                                                <Border Background="#3B4758"/>
-                                                
+                                                <s:SciChartSurface x:Name="ThrottleChart"
+                                                                   Background="#1B2430"
+                                                                   Padding="0"
+                                                                   BorderThickness="0">
+                                                    <s:SciChartSurface.XAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       DrawMajorGridLines="False"
+                                                                       DrawMinorGridLines="False"
+                                                                       DrawMajorBands="False"
+                                                                       DrawLabels="False"
+                                                                       DrawMinorTicks="False"
+                                                                       DrawMajorTicks="False"
+                                                                       VisibleRange="-0.5,1.5"/>
+                                                    </s:SciChartSurface.XAxis>
+                                                    <s:SciChartSurface.YAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       VisibleRange="0,1"
+                                                                       TextFormatting="0.00"
+                                                                       DrawMajorBands="False"
+                                                                       DrawMinorGridLines="False"
+                                                                       DrawMajorGridLines="False"
+                                                                       DrawMinorTicks="False"
+                                                                       DrawMajorTicks="True"/>
+                                                    </s:SciChartSurface.YAxis>
+
+                                                    <!-- <s:FastColumnRenderableSeries x:Name="ThrottleSeries"
+                                                                                  DataPointWidth="0.55"
+                                                                                  Fill="#6BC56B"
+                                                                                  StrokeThickness="0"/> -->
+                                                </s:SciChartSurface>
                                             </DockPanel>
                                         </Border>
 
@@ -184,10 +805,35 @@
                                                                TextAlignment="Center"/>
                                                 </Border>
 
-                                                <Border Margin="0,0,0,5"
-                                                        Background="#354152"/>
-                                                <Border Background="#3B4758"/>
-                                                
+                                                <s:SciChartSurface x:Name="BrakeChart"
+                                                                   Background="#1B2430"
+                                                                   Padding="0"
+                                                                   BorderThickness="0">
+                                                    <s:SciChartSurface.XAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       DrawMajorGridLines="False"
+                                                                       DrawMinorGridLines="False"
+                                                                       DrawMajorBands="False"
+                                                                       DrawLabels="False"
+                                                                       DrawMinorTicks="False"
+                                                                       DrawMajorTicks="False"
+                                                                       VisibleRange="-0.5,1.5"/>
+                                                    </s:SciChartSurface.XAxis>
+                                                    <s:SciChartSurface.YAxis>
+                                                        <s:NumericAxis AutoRange="Never"
+                                                                       VisibleRange="0,1"
+                                                                       TextFormatting="0.00"
+                                                                       DrawMajorBands="False"
+                                                                       DrawMinorGridLines="False"
+                                                                       DrawMajorGridLines="False"
+                                                                       DrawMinorTicks="False"
+                                                                       DrawMajorTicks="True"/>
+                                                    </s:SciChartSurface.YAxis>
+                                                    <!-- <s:FastColumnRenderableSeries x:Name="BrakeSeries"
+                                                                                  DataPointWidth="0.55"
+                                                                                  Fill="#D9534F"
+                                                                                  StrokeThickness="0"/> -->
+                                                </s:SciChartSurface>
                                             </DockPanel>
                                         </Border>
 
@@ -209,10 +855,39 @@
                                                                TextAlignment="Center"/>
                                                 </Border>
 
-                                                <Border Margin="0,0,0,5"
-                                                        Background="#354152"/>
-                                                <Border Background="#3B4758"/>
-                                                
+                                                <Grid Background="#1B2430">
+                                                    <s:SciChartSurface  x:Name="FuelChart"
+                                                                        Margin="0"
+                                                                        Background="#1B2430"
+                                                                        Padding="0"
+                                                                        BorderThickness="0">
+                                                        <s:SciChartSurface.XAxis>
+                                                            <s:NumericAxis AutoRange="Never"
+                                                                           DrawMajorGridLines="False"
+                                                                           DrawMinorGridLines="False"
+                                                                           DrawMajorBands="False"
+                                                                           DrawLabels="False"
+                                                                           DrawMinorTicks="False"
+                                                                           DrawMajorTicks="False"
+                                                                           VisibleRange="-0.5,1.5"/>
+                                                        </s:SciChartSurface.XAxis>
+                                                        <s:SciChartSurface.YAxis>
+                                                            <s:NumericAxis  AutoRange="Never"
+                                                                            VisibleRange="0,10"
+                                                                            TextFormatting="0.00 L"
+                                                                            DrawMajorBands="False"
+                                                                            DrawMinorGridLines="False"
+                                                                            DrawMajorGridLines="False"
+                                                                            DrawMinorTicks="False"
+                                                                            DrawMajorTicks="True"/>
+                                                        </s:SciChartSurface.YAxis>
+                                                        <!-- <s:FastColumnRenderableSeries x:Name="FuelSeries"
+                                                                                      DataPointWidth="0.9"
+                                                                                      Fill="#E8D88D"
+                                                                                      StrokeThickness="0"/> -->
+                                                    </s:SciChartSurface>
+                                                </Grid>
+
                                             </DockPanel>
                                         </Border>
 
