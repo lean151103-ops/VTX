@@ -14,7 +14,6 @@
                     Foreground="White"
                     BorderBrush="#374252"
                     BorderThickness="0">
-
             <!-- TAB 1 -->
             <TabItem Header="Realtime Summary">
                 <Grid Background="#1F2733">
@@ -36,7 +35,6 @@
                                    VerticalAlignment="Center"
                                    Margin="0,0,0,0"/>
                     </Border>
-
                     <!-- DATA BLOCK -->
                     <ScrollViewer Grid.Row="1"
                                   Margin="0,5,0,0"
@@ -169,7 +167,6 @@
                                             <RowDefinition Height="*"/>
                                             <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
-
                                         <!-- SPEED -->
                                         <Border Grid.Row="0"
                                                 Margin="0,0,0,5"
@@ -187,7 +184,6 @@
                                                                HorizontalAlignment="Center"
                                                                VerticalAlignment="Center"/>
                                                 </Border>
-
                                                 <!-- Chart -->
                                                 <s:SciChartSurface x:Name="SpeedChart"
                                                                    Background="#1E252B"
@@ -205,7 +201,6 @@
                                                                        TextFormatting="0 'm/s'"
                                                                        TickTextBrush="White"/>
                                                     </s:SciChartSurface.XAxis>
-
                                                     <s:SciChartSurface.YAxis>
                                                         <s:NumericAxis AutoRange="Never"
                                                                        VisibleRange="0,1"
@@ -238,7 +233,6 @@
                                                 </s:SciChartSurface>
                                             </DockPanel>
                                         </Border>
-
                                         <!-- RPM -->
                                         <Border Grid.Row="1"
                                                 Margin="0,0,0,5"
