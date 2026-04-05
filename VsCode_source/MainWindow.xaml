@@ -79,7 +79,11 @@
 
                                         <Grid>
                                             <Grid.RowDefinitions>
+<<<<<<< HEAD
                                                 <RowDefinition Height="0.5*"/>
+=======
+                                                <RowDefinition Height="auto"/>
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                 <RowDefinition Height="*"/>
                                             </Grid.RowDefinitions>
 
@@ -188,6 +192,10 @@
                                                 <s:SciChartSurface x:Name="SpeedChart"
                                                                    Background="#1E252B"
                                                                    BorderThickness="0">
+<<<<<<< HEAD
+=======
+
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                     <s:SciChartSurface.XAxis>
                                                         <s:NumericAxis AutoRange="Never"
                                                                        VisibleRange="0,100"
@@ -208,20 +216,36 @@
                                                                        DrawMajorGridLines="False"
                                                                        DrawMinorGridLines="False"/>
                                                     </s:SciChartSurface.YAxis>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                     <s:SciChartSurface.Annotations>
                                                         <!-- thanh fill -->
                                                         <s:BoxAnnotation x:Name="SpeedBar"
                                                                         X1="0"
+<<<<<<< HEAD
                                                                         X2="{Binding Speed}"
+=======
+                                                                        X2="65"
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                                         Y1="0.25"
                                                                         Y2="0.95"
                                                                         Background="#5E9BB3"
                                                                         BorderBrush="#5E9BB3"/>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                         <!-- text giá trị -->
                                                         <s:TextAnnotation x:Name="SpeedValueText"
                                                                           X1="66"
                                                                           Y1="0.60"
+<<<<<<< HEAD
                                                                           Text="{Binding SpeedTex}"
+=======
+                                                                          Text="65 m/s"
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                                           Foreground="#7F8B97"
                                                                           FontSize="10"
                                                                           HorizontalAnchorPoint="Left"
@@ -247,6 +271,10 @@
                                                                HorizontalAlignment="Center"
                                                                VerticalAlignment="Center"/>
                                                 </Border>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                 <!-- Chart -->
                                                 <s:SciChartSurface x:Name="RPMChart"
                                                                    Background="#1E252B"
@@ -263,6 +291,10 @@
                                                                        TextFormatting="0 'm/s'"
                                                                        TickTextBrush="White"/>
                                                     </s:SciChartSurface.XAxis>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                     <s:SciChartSurface.YAxis>
                                                         <s:NumericAxis AutoRange="Never"
                                                                        VisibleRange="0,1"
@@ -271,11 +303,19 @@
                                                                        DrawMajorGridLines="False"
                                                                        DrawMinorGridLines="False"/>
                                                     </s:SciChartSurface.YAxis>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                     <s:SciChartSurface.Annotations>
                                                         <!-- thanh fill -->
                                                         <s:BoxAnnotation    x:Name="RPMBar"
                                                                             X1="0"
+<<<<<<< HEAD
                                                                             X2="{Binding RPM}"
+=======
+                                                                            X2="65"
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                                             Y1="0.25"
                                                                             Y2="0.95"
                                                                             Background="#5E9BB3"
@@ -284,7 +324,11 @@
                                                         <s:TextAnnotation x:Name="RPMValueText"
                                                                           X1="66"
                                                                           Y1="0.60"
+<<<<<<< HEAD
                                                                           Text="{Binding RPMText}"
+=======
+                                                                          Text="65 m/s"
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                                           Foreground="#7F8B97"
                                                                           FontSize="10"
                                                                           HorizontalAnchorPoint="Left"
@@ -293,6 +337,10 @@
                                                 </s:SciChartSurface>
                                             </DockPanel>
                                         </Border>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                         <!-- Steering -->
                                         <Border Grid.Row="2"
                                                 Margin="0,0,0,5"
@@ -310,6 +358,10 @@
                                                                HorizontalAlignment="Center"
                                                                VerticalAlignment="Center"/>
                                                 </Border>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                 <!-- Chart -->
                                                 <s:SciChartSurface x:Name="SteeringChart"
                                                                    Background="#1E252B"
@@ -326,6 +378,10 @@
                                                                        TextFormatting="0 'm/s'"
                                                                        TickTextBrush="White"/>
                                                     </s:SciChartSurface.XAxis>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                     <s:SciChartSurface.YAxis>
                                                         <s:NumericAxis AutoRange="Never"
                                                                        VisibleRange="0,1"
@@ -334,11 +390,19 @@
                                                                        DrawMajorGridLines="False"
                                                                        DrawMinorGridLines="False"/>
                                                     </s:SciChartSurface.YAxis>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                     <s:SciChartSurface.Annotations>
                                                         <!-- thanh fill -->
                                                         <s:BoxAnnotation    x:Name="SteeringBar"
                                                                             X1="0"
+<<<<<<< HEAD
                                                                             X2="{Binding Steering}"
+=======
+                                                                            X2="65"
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                                             Y1="0.25"
                                                                             Y2="0.95"
                                                                             Background="#5E9BB3"
@@ -347,7 +411,11 @@
                                                         <s:TextAnnotation x:Name="SteeringValueText"
                                                                           X1="66"
                                                                           Y1="0.60"
+<<<<<<< HEAD
                                                                           Text="{Binding SteeringText}"
+=======
+                                                                          Text="65 m/s"
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                                           Foreground="#7F8B97"
                                                                           FontSize="10"
                                                                           HorizontalAnchorPoint="Left"
@@ -380,7 +448,11 @@
                                                             FontSize="15"
                                                             Margin="0,10,0,0">
                                                     <Run Text="speed_car = "/>
+<<<<<<< HEAD
                                                     <Run Text="{Binding SpeedTex}"/>
+=======
+                                                    <Run Text="{Binding Velocity}"/>
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                     <Run Text="     (km/h)"/>
                                                 </TextBlock>
 
@@ -388,28 +460,44 @@
                                                             FontSize="15"
                                                             Margin="0,10,0,0">
                                                     <Run Text="RPM = "/>
+<<<<<<< HEAD
                                                     <Run Text="{Binding RPMText}"/>
+=======
+                                                    <Run Text="{Binding RPM}"/>
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                     <Run Text="     (rpm)"/>
                                                 </TextBlock>
                                                 <TextBlock  Foreground="White"
                                                             FontSize="15"
                                                             Margin="0,10,0,0">
                                                     <Run Text="Throttle Pedal = "/>
+<<<<<<< HEAD
                                                     <Run Text="{Binding ThrottleText}"/>
+=======
+                                                    <Run Text="{Binding Throttle}"/>
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                     <Run Text="     (%)"/>
                                                 </TextBlock>
                                                 <TextBlock  Foreground="White"
                                                             FontSize="15"
                                                             Margin="0,10,0,0">
                                                     <Run Text="Brake Pedal = "/>
+<<<<<<< HEAD
                                                     <Run Text="{Binding BrakeText}"/>
+=======
+                                                    <Run Text="{Binding Brake}"/>
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                     <Run Text="     (%)"/>
                                                 </TextBlock>
                                                 <TextBlock  Foreground="White"
                                                             FontSize="15"
                                                             Margin="0,10,0,0">
                                                     <Run Text="Temp_BrakeDisc = "/>
+<<<<<<< HEAD
                                                     <Run Text="{Binding TempBrakeDiscText}"/>
+=======
+                                                    <Run Text="{Binding Velocity}"/>
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                                     <Run Text="     (oC)"/>
                                                 </TextBlock>
                                             </StackPanel>
@@ -708,6 +796,7 @@
                                                 </StackPanel>
                                             </Border>
                                         </Grid>
+<<<<<<< HEAD
                                         <Grid Grid.Column="1">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="*"/>
@@ -803,6 +892,8 @@
                                                 </DockPanel>
                                             </Border>
                                         </Grid>
+=======
+>>>>>>> 880602e4d325021d90c4426d47f2276620d2c008
                                     </Grid>
                                 </Grid>
 
