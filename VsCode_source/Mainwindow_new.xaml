@@ -79,7 +79,7 @@
 
                                         <Grid>
                                             <Grid.RowDefinitions>
-                                                <RowDefinition Height="auto"/>
+                                                <RowDefinition Height="0.5*"/>
                                                 <RowDefinition Height="*"/>
                                             </Grid.RowDefinitions>
 
@@ -188,7 +188,6 @@
                                                 <s:SciChartSurface x:Name="SpeedChart"
                                                                    Background="#1E252B"
                                                                    BorderThickness="0">
-
                                                     <s:SciChartSurface.XAxis>
                                                         <s:NumericAxis AutoRange="Never"
                                                                        VisibleRange="0,100"
@@ -209,22 +208,20 @@
                                                                        DrawMajorGridLines="False"
                                                                        DrawMinorGridLines="False"/>
                                                     </s:SciChartSurface.YAxis>
-
                                                     <s:SciChartSurface.Annotations>
                                                         <!-- thanh fill -->
                                                         <s:BoxAnnotation x:Name="SpeedBar"
                                                                         X1="0"
-                                                                        X2="65"
+                                                                        X2="{Binding Speed}"
                                                                         Y1="0.25"
                                                                         Y2="0.95"
                                                                         Background="#5E9BB3"
                                                                         BorderBrush="#5E9BB3"/>
-
                                                         <!-- text giá trị -->
                                                         <s:TextAnnotation x:Name="SpeedValueText"
                                                                           X1="66"
                                                                           Y1="0.60"
-                                                                          Text="65 m/s"
+                                                                          Text="{Binding SpeedTex}"
                                                                           Foreground="#7F8B97"
                                                                           FontSize="10"
                                                                           HorizontalAnchorPoint="Left"
@@ -250,7 +247,6 @@
                                                                HorizontalAlignment="Center"
                                                                VerticalAlignment="Center"/>
                                                 </Border>
-
                                                 <!-- Chart -->
                                                 <s:SciChartSurface x:Name="RPMChart"
                                                                    Background="#1E252B"
@@ -267,7 +263,6 @@
                                                                        TextFormatting="0 'm/s'"
                                                                        TickTextBrush="White"/>
                                                     </s:SciChartSurface.XAxis>
-
                                                     <s:SciChartSurface.YAxis>
                                                         <s:NumericAxis AutoRange="Never"
                                                                        VisibleRange="0,1"
@@ -276,12 +271,11 @@
                                                                        DrawMajorGridLines="False"
                                                                        DrawMinorGridLines="False"/>
                                                     </s:SciChartSurface.YAxis>
-
                                                     <s:SciChartSurface.Annotations>
                                                         <!-- thanh fill -->
                                                         <s:BoxAnnotation    x:Name="RPMBar"
                                                                             X1="0"
-                                                                            X2="65"
+                                                                            X2="{Binding RPM}"
                                                                             Y1="0.25"
                                                                             Y2="0.95"
                                                                             Background="#5E9BB3"
@@ -290,7 +284,7 @@
                                                         <s:TextAnnotation x:Name="RPMValueText"
                                                                           X1="66"
                                                                           Y1="0.60"
-                                                                          Text="65 m/s"
+                                                                          Text="{Binding RPMText}"
                                                                           Foreground="#7F8B97"
                                                                           FontSize="10"
                                                                           HorizontalAnchorPoint="Left"
@@ -299,7 +293,6 @@
                                                 </s:SciChartSurface>
                                             </DockPanel>
                                         </Border>
-
                                         <!-- Steering -->
                                         <Border Grid.Row="2"
                                                 Margin="0,0,0,5"
@@ -317,7 +310,6 @@
                                                                HorizontalAlignment="Center"
                                                                VerticalAlignment="Center"/>
                                                 </Border>
-
                                                 <!-- Chart -->
                                                 <s:SciChartSurface x:Name="SteeringChart"
                                                                    Background="#1E252B"
@@ -334,7 +326,6 @@
                                                                        TextFormatting="0 'm/s'"
                                                                        TickTextBrush="White"/>
                                                     </s:SciChartSurface.XAxis>
-
                                                     <s:SciChartSurface.YAxis>
                                                         <s:NumericAxis AutoRange="Never"
                                                                        VisibleRange="0,1"
@@ -343,12 +334,11 @@
                                                                        DrawMajorGridLines="False"
                                                                        DrawMinorGridLines="False"/>
                                                     </s:SciChartSurface.YAxis>
-
                                                     <s:SciChartSurface.Annotations>
                                                         <!-- thanh fill -->
                                                         <s:BoxAnnotation    x:Name="SteeringBar"
                                                                             X1="0"
-                                                                            X2="65"
+                                                                            X2="{Binding Steering}"
                                                                             Y1="0.25"
                                                                             Y2="0.95"
                                                                             Background="#5E9BB3"
@@ -357,7 +347,7 @@
                                                         <s:TextAnnotation x:Name="SteeringValueText"
                                                                           X1="66"
                                                                           Y1="0.60"
-                                                                          Text="65 m/s"
+                                                                          Text="{Binding SteeringText}"
                                                                           Foreground="#7F8B97"
                                                                           FontSize="10"
                                                                           HorizontalAnchorPoint="Left"
@@ -390,7 +380,7 @@
                                                             FontSize="15"
                                                             Margin="0,10,0,0">
                                                     <Run Text="speed_car = "/>
-                                                    <Run Text="{Binding Velocity}"/>
+                                                    <Run Text="{Binding SpeedTex}"/>
                                                     <Run Text="     (km/h)"/>
                                                 </TextBlock>
 
@@ -398,28 +388,28 @@
                                                             FontSize="15"
                                                             Margin="0,10,0,0">
                                                     <Run Text="RPM = "/>
-                                                    <Run Text="{Binding RPM}"/>
+                                                    <Run Text="{Binding RPMText}"/>
                                                     <Run Text="     (rpm)"/>
                                                 </TextBlock>
                                                 <TextBlock  Foreground="White"
                                                             FontSize="15"
                                                             Margin="0,10,0,0">
                                                     <Run Text="Throttle Pedal = "/>
-                                                    <Run Text="{Binding Throttle}"/>
+                                                    <Run Text="{Binding ThrottleText}"/>
                                                     <Run Text="     (%)"/>
                                                 </TextBlock>
                                                 <TextBlock  Foreground="White"
                                                             FontSize="15"
                                                             Margin="0,10,0,0">
                                                     <Run Text="Brake Pedal = "/>
-                                                    <Run Text="{Binding Brake}"/>
+                                                    <Run Text="{Binding BrakeText}"/>
                                                     <Run Text="     (%)"/>
                                                 </TextBlock>
                                                 <TextBlock  Foreground="White"
                                                             FontSize="15"
                                                             Margin="0,10,0,0">
                                                     <Run Text="Temp_BrakeDisc = "/>
-                                                    <Run Text="{Binding Velocity}"/>
+                                                    <Run Text="{Binding TempBrakeDiscText}"/>
                                                     <Run Text="     (oC)"/>
                                                 </TextBlock>
                                             </StackPanel>
@@ -716,6 +706,101 @@
                                                         </Border>
                                                     </Grid>
                                                 </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                        <Grid Grid.Column="1">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <Border Grid.Row="0">
+                                                <DockPanel LastChildFill="True">
+                                                    <Border DockPanel.Dock="Top"
+                                                            Height= "auto">
+                                                        <TextBlock Text="Acceleration_x"
+                                                                   Foreground="White"
+                                                                   FontSize="10"
+                                                                   Margin="0,0,0,4"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <s:SciChartSurface  x:Name="IMUxChart"
+                                                                        Background="#1E252B">
+                                                        <s:SciChartSurface.XAxis>
+                                                            <s:NumericAxis  AutoRange="Never"
+                                                                            DrawMajorBands="False"
+                                                                            DrawMajorGridLines="False"
+                                                                            DrawMinorGridLines="False"
+                                                                            DrawLabels="True"
+                                                                            TextFormatting="0 'm'"
+                                                                            TickTextBrush="White"/>
+                                                        </s:SciChartSurface.XAxis>
+                                                        <s:SciChartSurface.YAxis>
+                                                            <s:NumericAxis  AutoRange="Never"
+                                                                            TextFormatting="0 'm/s2'"
+                                                                            DrawMajorBands="False"
+                                                                            DrawMinorGridLines="False"
+                                                                            DrawMajorGridLines="False"
+                                                                            DrawMinorTicks="False"
+                                                                            DrawMajorTicks="True"
+                                                                            TickTextBrush="White"/>
+                                                        </s:SciChartSurface.YAxis>
+                                                    </s:SciChartSurface>
+                                                </DockPanel>
+                                            </Border>
+                                            <Border Grid.Row="1">
+                                                <DockPanel LastChildFill="True">
+                                                    <Border DockPanel.Dock="Top"
+                                                            Height= "auto">
+                                                        <TextBlock Text="Acceleration_y"
+                                                                   Foreground="White"
+                                                                   FontSize="10"
+                                                                   Margin="0,0,0,4"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <s:SciChartSurface  x:Name="IMUyChart"
+                                                                        Background="#1E252B">
+                                                        <s:SciChartSurface.XAxis>
+                                                            <s:NumericAxis  AutoRange="Never"
+                                                                            DrawMajorBands="False"
+                                                                            DrawMajorGridLines="False"
+                                                                            DrawMinorGridLines="False"
+                                                                            DrawLabels="True"
+                                                                            TextFormatting="0 'm'"
+                                                                            TickTextBrush="White"/>
+                                                        </s:SciChartSurface.XAxis>
+                                                        <s:SciChartSurface.YAxis>
+                                                            <s:NumericAxis  AutoRange="Never"
+                                                                            TextFormatting="0 'm/s2'"
+                                                                            DrawMajorBands="False"
+                                                                            DrawMinorGridLines="False"
+                                                                            DrawMajorGridLines="False"
+                                                                            DrawMinorTicks="False"
+                                                                            DrawMajorTicks="True"
+                                                                            TickTextBrush="White"/>
+                                                        </s:SciChartSurface.YAxis>
+                                                    </s:SciChartSurface>
+                                                </DockPanel>
+                                            </Border>
+                                            <Border Grid.Row="2">
+                                                <DockPanel LastChildFill="True">
+                                                    <Border DockPanel.Dock="Top">
+                                                        <TextBlock Text="GEAR"
+                                                                   Foreground="White"
+                                                                   FontSize="20"
+                                                                   Margin="0,18,0,0"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <Border>
+                                                        <TextBlock Text="{Binding Gear}"
+                                                                   Foreground="White"
+                                                                   FontSize="50"
+                                                                   FontWeight="Bold"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </DockPanel>
                                             </Border>
                                         </Grid>
                                     </Grid>
