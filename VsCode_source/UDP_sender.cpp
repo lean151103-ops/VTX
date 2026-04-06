@@ -10,16 +10,17 @@
 #pragma comment(lib, "ws2_32.lib")
 
 #pragma pack(push, 1)
-struct SensorData {
-    int16_t velocity;
-    uint16_t rpm;
-    int16_t imu;
-    int16_t temperature;
+struct PAYLOAD {
+    uint16_t lapCounter;
+    uint16_t distance;
+    uint16_t speed;
+    uint16_t steering;
+    uint16_t throttle;
 };
 #pragma pack(pop)
 
 const uint32_t POLYMINAl = 0xEDB88320u;
-static_assert(sizeof(SensorData) == 8, "SensorData must be 8 bytes");
+const uint8_t LEN_PAYLOAD = sizeof(PAYLOAD); 
 
 // Calculating CRC of data and then packaging in Frame
 uint32_t crc32(const uint8_t data[], size_t length) {
@@ -45,9 +46,8 @@ void unpack_crc32_lte(const uint32_t crc, uint8_t* buffer) {
 }
 
 // Creating frame for sending: (2 header | 2 seq | 100 payload | 4 crc) = 108 bytes
-void createFrame(std::vector<uint8_t>& frame, const uint16_t seq) {
+void createFrame(std::vector<uint8_t>& frame, const uint32_t seq) {
     frame.clear();
-    const int LEN_PAYLOAD = 8;
     const uint8_t Header1 = 0xAA;
     const uint8_t Header2 = 0x55;
 
@@ -55,23 +55,28 @@ void createFrame(std::vector<uint8_t>& frame, const uint16_t seq) {
     frame.push_back(Header2);
     frame.push_back((uint8_t)(seq & 0xFF));
     frame.push_back((uint8_t)((seq >> 8) & 0xFF));
-
+    frame.push_back((uint8_t)((seq >> 16) & 0xFF)); // Little Endian: LS byte send first
+    frame.push_back((uint8_t)LEN_PAYLOAD); // Payload length
     double t = GetTickCount64() / 1000.0;
-    SensorData s;
-    s.velocity = (int16_t)(120 + 30 * std::sin(t));
-    s.rpm = (uint16_t)(2500 + 400 * std::sin(t));
-    s.imu = (int16_t)(100 * std::sin(t * 2));
-    s.temperature = (int16_t)(365 + 5 * std::cos(t)); // 36.5 độ
+    PAYLOAD s;
+    
+    s.lapCounter = (uint16_t)(seq % 1000);
+    s.distance = (uint16_t)(1000 + 100 * std::sin(t));
+    s.speed = (uint16_t)(200 + 50 * std::sin(t));
+    s.steering = (uint16_t)(500 + 200 * std::sin(t * 2));
+    s.throttle = (uint16_t)(800 + 200 * std::cos(t)); // 80.0
 
     // Little Endian: LSB send first, MSB send last
-    frame.push_back(s.velocity & 0xFF);
-    frame.push_back((s.velocity >> 8) & 0xFF);
-    frame.push_back(s.rpm & 0xFF);
-    frame.push_back((s.rpm >> 8) & 0xFF);
-    frame.push_back(s.imu & 0xFF);
-    frame.push_back((s.imu >> 8) & 0xFF);
-    frame.push_back(s.temperature & 0xFF);
-    frame.push_back((s.temperature >> 8) & 0xFF);
+    frame.push_back(s.lapCounter & 0xFF);
+    frame.push_back((s.lapCounter >> 8) & 0xFF);
+    frame.push_back(s.distance & 0xFF);
+    frame.push_back((s.distance >> 8) & 0xFF);
+    frame.push_back(s.speed & 0xFF);
+    frame.push_back((s.speed >> 8) & 0xFF);
+    frame.push_back(s.steering & 0xFF);
+    frame.push_back((s.steering >> 8) & 0xFF);
+    frame.push_back(s.throttle & 0xFF);
+    frame.push_back((s.throttle >> 8) & 0xFF);
 
     uint32_t crc = crc32(&frame[0], LEN_PAYLOAD + 4);
     uint8_t crcBytes[4];
@@ -109,8 +114,8 @@ int sendUdpLoop(const char* ip, uint16_t port, int periodMs)
     std::cout << "Sending UDP telemetry to " << ip << ":" << port << std::endl;
 
 
-    uint16_t seq = 0;
-    while (true) {
+    uint24_t seq = 0;
+    while (seq < 100000) {
         std::vector<uint8_t> frame;
         createFrame(frame, seq);
         int sendResult = sendto(
