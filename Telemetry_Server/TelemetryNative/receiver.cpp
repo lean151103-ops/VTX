@@ -24,11 +24,6 @@ static std::mutex dataMutex;
 static SOCKET g_sock = INVALID_SOCKET;
 static std::mutex g_sockMutex;
 
-<<<<<<< HEAD
-=======
-int LEN_FRAME = 16;
-
->>>>>>> 17307df548fef56885050eed60aca2a3aeed9733
 uint32_t crc32(const uint8_t data[], size_t length) {
 	uint32_t crc = 0xFFFFFFFF;
 	for (size_t i = 0; i < length; i++) {
@@ -54,34 +49,19 @@ uint32_t pack_crc32_lte(const uint8_t* buffer) {
 		);
 }
 
-<<<<<<< HEAD
 bool checkFrame(const std::vector<uint8_t>& recvFrame, size_t frameSize) {
 	if (recvFrame.size() != frameSize) return false;
 	uint32_t crc_rx = pack_crc32_lte(&recvFrame[frameSize - 4]);
 	uint32_t crc_calc = crc32(&recvFrame[0], frameSize-4);
-=======
-bool checkFrame(const std::vector<uint8_t>& recvFrame, uint8_t length) {
-	if (recvFrame.size() != LEN_FRAME) return false;
-	uint32_t crc_rx = pack_crc32_lte(&recvFrame[12]);
-	uint32_t crc_calc = crc32(&recvFrame[0], 12);
->>>>>>> 17307df548fef56885050eed60aca2a3aeed9733
 	return (crc_rx == crc_calc);
 }
 
 bool UnpackFrame(const uint8_t recvData[], int len) {
-<<<<<<< HEAD
 	enum State { WAIT_H1, WAIT_H2, RECEIVE_SEQ_LEN, RECEIVE_PAYLOAD_CRC };
 	static State state = WAIT_H1;
 	static std::vector<uint8_t> fullFrame;
 	static uint8_t length = 0;
 	static size_t frameSize = 0;
-=======
-	enum State { WAIT_H1, WAIT_H2, RECEIVE_SEQ_LEN ,RECEIVE_PAYLOAD_CRC };
-	static State state = WAIT_H1;
-	static std::vector<uint8_t> fullFrame;
-	uint8_t length = 0;
-	size_t frameSize = 0;
->>>>>>> 17307df548fef56885050eed60aca2a3aeed9733
 	static int bad = 0;
 	static int good = 0;
 	bool foundGoodFrame = false;
@@ -106,7 +86,6 @@ bool UnpackFrame(const uint8_t recvData[], int len) {
 			}
 			else state = WAIT_H1;
 			break;
-<<<<<<< HEAD
 
 		case RECEIVE_SEQ_LEN:
 			fullFrame.push_back(b);
@@ -114,22 +93,12 @@ bool UnpackFrame(const uint8_t recvData[], int len) {
 				length = fullFrame[6];
 				state = RECEIVE_PAYLOAD_CRC;
 				frameSize = 2 + 4 + 1 + (size_t)length + 4; // 2 header + 4 seq + 1 len + payload + 4 crc
-=======
-		
-		case RECEIVE_SEQ_LEN:
-			fullFrame.push_back(b);
-			if (fullFrame.size() == 5) {
-				length = fullFrame[4];
-				state = RECEIVE_PAYLOAD_CRC;
-				frameSize = 2 + 2 + 1 + (size_t)length + 4;
->>>>>>> 17307df548fef56885050eed60aca2a3aeed9733
 			};
 			break;
 
 		case RECEIVE_PAYLOAD_CRC:
 			fullFrame.push_back(b);
 			if (fullFrame.size() == frameSize) {
-<<<<<<< HEAD
 				if (checkFrame(fullFrame, frameSize)) {
 					{
 						std::lock_guard<std::mutex> lock(dataMutex);
@@ -141,16 +110,6 @@ bool UnpackFrame(const uint8_t recvData[], int len) {
 								 | ((uint8_t)fullFrame[3] << 8)
 								 | ((uint8_t)fullFrame[4] <<16) 
 								 | ((uint8_t)fullFrame[5] << 24);
-=======
-				if (checkFrame(fullFrame, length)) {
-					{
-						std::lock_guard<std::mutex> lock(dataMutex);
-						_data.assign(fullFrame.begin() + 5, fullFrame.begin() + 5 + length);
-						version.fetch_add(1, std::memory_order_relaxed);
-					}
-					good++;
-					uint16_t seq = (uint16_t)fullFrame[2] | ((uint16_t)fullFrame[3] << 8);
->>>>>>> 17307df548fef56885050eed60aca2a3aeed9733
 					//std::cout << "GOODFRAME: " << seq << std::endl;
 					foundGoodFrame = true;
 				}
