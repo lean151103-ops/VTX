@@ -52,7 +52,7 @@ uint32_t pack_crc32_lte(const uint8_t* buffer) {
 bool checkFrame(const std::vector<uint8_t>& recvFrame, size_t frameSize) {
 	if (recvFrame.size() != frameSize) return false;
 	uint32_t crc_rx = pack_crc32_lte(&recvFrame[frameSize - 4]);
-	uint32_t crc_calc = crc32(&recvFrame[0], frameSize-4);
+	uint32_t crc_calc = crc32(&recvFrame[0], frameSize - 4);
 	return (crc_rx == crc_calc);
 }
 
@@ -106,10 +106,10 @@ bool UnpackFrame(const uint8_t recvData[], int len) {
 						version.fetch_add(1, std::memory_order_relaxed);
 					}
 					good++;
-					uint32_t seq = (uint8_t)fullFrame[2]  
-								 | ((uint8_t)fullFrame[3] << 8)
-								 | ((uint8_t)fullFrame[4] <<16) 
-								 | ((uint8_t)fullFrame[5] << 24);
+					uint32_t seq = (uint8_t)fullFrame[2]
+						| ((uint8_t)fullFrame[3] << 8)
+						| ((uint8_t)fullFrame[4] << 16)
+						| ((uint8_t)fullFrame[5] << 24);
 					//std::cout << "GOODFRAME: " << seq << std::endl;
 					foundGoodFrame = true;
 				}

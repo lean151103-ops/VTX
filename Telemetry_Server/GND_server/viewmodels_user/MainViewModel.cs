@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -33,11 +34,32 @@ namespace GNDServer2.Viewmodels_user
         private readonly TelemetryService _service;
         private int _xIndex = 0;
 
+        private double _LapCounter;
+        public double LapCounter
+        {
+            get => _LapCounter;
+            set => SetField(ref _LapCounter, value);
+        }
+
+        private double _Distance;
+        public double Distance
+        {
+            get => _Distance;
+            set => SetField(ref _Distance, value);
+        }
+
         private double _Speed;
         public double Speed
         {
             get => _Speed;
             set => SetField(ref _Speed, value);
+        }
+
+        private double _Throttle;
+        public double Throttle
+        {
+            get => _Throttle;
+            set => SetField(ref _Throttle, value);
         }
 
         private double _RPM;
@@ -52,6 +74,19 @@ namespace GNDServer2.Viewmodels_user
         {
             get => _Steering;
             set => SetField(ref _Steering, value);
+        }
+
+        private double _IMUx;
+        public double IMUx
+        {
+            get => _IMUx;
+            set => SetField(ref _IMUx, value);
+        }
+        private double _IMUy;
+        public double IMUy
+        {
+            get => _IMUy;
+            set => SetField(ref _IMUy, value);
         }
 
         private double _TempBrakeDisc;
@@ -183,9 +218,9 @@ namespace GNDServer2.Viewmodels_user
         public XyDataSeries<double, double> CarMakersSeries { get; private set; }
         public XyDataSeries<double, double> IMUxSeries { get; private set; }
         public XyDataSeries<double, double> IMUySeries { get; private set; }
-        public XyDataSeries<double, double> ThrottleSeries { get; private set; }
-        public XyDataSeries<double, double> BrakeSeries { get; private set; }
-        public XyDataSeries<double, double> FuelSeries { get; private set; }
+        public XyDataSeries<double, double> ThrottleDataSeries { get; private set; }
+        public XyDataSeries<double, double> BrakeDataSeries { get; private set; }
+        public XyDataSeries<double, double> FuelDataSeries { get; private set; }
 
         public MainViewModel()
         {
@@ -203,14 +238,14 @@ namespace GNDServer2.Viewmodels_user
             IMUySeries.SeriesName = "IMUy";
             IMUySeries.FifoCapacity = 300;
 
-            ThrottleSeries = new XyDataSeries<double, double>();
-            ThrottleSeries.Append(0, 0);
+            ThrottleDataSeries = new XyDataSeries<double, double>();
+            ThrottleDataSeries.Append(0, 0);
 
-            BrakeSeries = new XyDataSeries<double, double>();
-            BrakeSeries.Append(0, 0);
+            BrakeDataSeries = new XyDataSeries<double, double>();
+            BrakeDataSeries.Append(0, 0);
 
-            FuelSeries = new XyDataSeries<double, double>();
-            FuelSeries.Append(0, 0);
+            FuelDataSeries = new XyDataSeries<double, double>();
+            FuelDataSeries.Append(0, 0);
 
             _service = new TelemetryService();
             _service.OnDataReceived += Service_OnDataReceived; // While receiving flag OnDataReceived, calling Service_OnDataReceived (+= is registing handler function)
@@ -221,7 +256,7 @@ namespace GNDServer2.Viewmodels_user
         private void Service_OnDataReceived(TelemetryData data)
         {
             //Application.Current: app WPF current -> .Dispatcher: manage UI-Thread -> .BeginInvoke: making UI-thread running this function
-            Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+            Application.Current.Dispatcher.InvokeAsync(async () =>
             {
                 // SciChart DataSeries
                 CarMakersSeries.Clear();
@@ -229,17 +264,33 @@ namespace GNDServer2.Viewmodels_user
                 IMUxSeries.Append(_xIndex, data.imuX);
                 IMUySeries.Append(_xIndex, data.imuY);
 
-                ThrottleSeries.Append(0, data.throttle);
-                BrakeSeries.Append(0, data.brake);
-                FuelSeries.Append(0, data.fuel);
+                if (ThrottleDataSeries.Count > 0)
+                    ThrottleDataSeries.Update(0, (double)data.throttle);
+                else
+                    ThrottleDataSeries.Append(0, data.throttle);
+
+                if (BrakeDataSeries.Count > 0)
+                    BrakeDataSeries.Update(0, (double)data.brake);
+                else
+                    BrakeDataSeries.Append(0, data.brake);
+
+                if (FuelDataSeries.Count > 0)
+                    FuelDataSeries.Update(0, (double)data.fuel);
+                else
+                    FuelDataSeries.Append(0, data.fuel);
 
                 // XAML properties
+                LapCounter = data.lapCounter;
                 LapTimeText = data.lapTime;
+                Distance = data.distance;
                 Speed = data.speed;
+                Throttle = data.throttle;
                 RPM = data.rpm;
                 Steering = data.steering;
                 TempBrakeDisc = data.temp_brakeFL; // Tạm 
                 Gear = data.gear;
+                IMUx = data.imuX;
+                IMUy = data.imuY;
 
                 BrakeFLTemp = data.temp_brakeFL;
                 BrakeFLBrush = GetBrakeBrush(data.temp_brakeFL);
@@ -259,7 +310,7 @@ namespace GNDServer2.Viewmodels_user
                 TireRRTemp = data.temp_tireRR;
                 TireRRBrush = GetBrakeBrush(data.temp_tireRR);
                 _xIndex++;
-            }));
+            });
         }
 
         // If event OnPropertyChanged then updating the property to app (CallMemberName to don't need to pass propertyName)
