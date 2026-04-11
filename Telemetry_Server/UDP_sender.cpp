@@ -6,6 +6,10 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
+#include <mutex>
+#include <thread>
+#include <atomic>
+#include <opencv2/opencv.hpp>
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -211,7 +215,7 @@ void createFrame(std::vector<uint8_t>& frame, const uint32_t seq, SimState& sim)
     frame.insert(frame.end(), crcBytes, crcBytes + 4);
 }
 
-// ================= UDP LOOP =================
+// ================= UDP Telemetry LOOP =================
 int sendUdpLoop(const char* ip, uint16_t port, int periodMs)
 {
     WSADATA wsaData{};
@@ -272,11 +276,88 @@ int sendUdpLoop(const char* ip, uint16_t port, int periodMs)
     return 0;
 }
 
+// ================= UDP Video LOOP =================
+int sendVideoUDPLoop(const char* ip, uint16_t port, int periodMs)
+{
+    WSADATA wsaData{};
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        std::cerr << "[Video] WSAStartup failed: " << WSAGetLastError() << std::endl;
+        return -1;
+    }
+
+    SOCKET sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (sock == INVALID_SOCKET) {
+        std::cerr << "[Video] Socket creation failed: " << WSAGetLastError() << std::endl;
+        WSACleanup();
+        return -1;
+    }
+
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port   = htons(port);
+    if (inet_pton(AF_INET, ip, &addr.sin_addr) != 1) {
+        std::cerr << "[Video] inet_pton failed" << std::endl;
+        closesocket(sock);
+        WSACleanup();
+        return -1;
+    }
+
+    cv::VideoCapture cap(0);
+    if (!cap.isOpened()) {
+        std::cerr << "[Video] Cannot open webcam" << std::endl;
+        closesocket(sock);
+        WSACleanup();
+        return -1;
+    }
+
+    cap.set(cv::CAP_PROP_FRAME_WIDTH,  640);
+    cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+
+    std::cout << "[Video] Streaming webcam to " << ip << ":" << port << std::endl;
+
+    cv::Mat frame;
+    std::vector<int> encodeParams = { cv::IMWRITE_JPEG_QUALITY, 70 };
+
+    while (true) {
+        if (!cap.read(frame) || frame.empty()) {
+            Sleep(periodMs);
+            continue;
+        }
+        // cv::imshow("Webcam", frame);
+        // if (cv::waitKey(1) == 27) break; 
+
+        std::vector<uint8_t> jpegBuf;
+        if (!cv::imencode(".jpg", frame, jpegBuf, encodeParams)) {
+            Sleep(periodMs);
+            continue;
+        }
+
+        sendto(
+            sock,
+            reinterpret_cast<const char*>(jpegBuf.data()),
+            static_cast<int>(jpegBuf.size()),
+            0,
+            reinterpret_cast<sockaddr*>(&addr),
+            sizeof(addr)
+        );
+
+        Sleep(periodMs);
+    }
+
+    cap.release();
+    closesocket(sock);
+    WSACleanup();
+    return 0;
+}
+
 int main()
 {
-    const char targetIP[] = "10.101.201.251";
+    const char targetIP[] = "192.168.100.127";
     uint16_t targetPort = 5000;
 
-    sendUdpLoop(targetIP, targetPort, 50);
+    std::thread sendTeleThread(sendUdpLoop, targetIP, targetPort, 50);
+    std::thread sendVideoThread(sendVideoUDPLoop, targetIP, targetPort+5, 5);
+    sendTeleThread.join();
+    sendVideoThread.join();
     return 0;
 }

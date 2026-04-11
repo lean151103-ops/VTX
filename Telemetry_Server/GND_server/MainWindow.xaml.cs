@@ -1,4 +1,4 @@
-using GNDServer2.Viewmodels_user;
+using GNDServer.Viewmodels_user;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -9,8 +9,9 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using WinForms = System.Windows.Forms;
 
-namespace GNDServer2
+namespace GNDServer
 {
     public partial class MainWindow : Window
     {
@@ -34,144 +35,141 @@ namespace GNDServer2
                 if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control)
                     UndoPoint_Click(s, e);
             };
-            RestartSimulation(); 
+            //var source = PresentationSource.FromVisual(this);
+            //this.Loaded += (s, e) =>
+            //{
+            //    var src = PresentationSource.FromVisual(this);
+            //    double dpiX = src.CompositionTarget.TransformToDevice.M11;
+            //    double dpiY = src.CompositionTarget.TransformToDevice.M22;
+            //    MessageBox.Show($"DPI Scale: X={dpiX}, Y={dpiY}\n" +
+            //                   $"Window size: {this.ActualWidth}x{this.ActualHeight}\n" +
+            //                   $"Screen: {SystemParameters.PrimaryScreenWidth}x{SystemParameters.PrimaryScreenHeight}");
+            //};
+            RestartSimulation();
         }
         private void MainWindow_Closing(object sender, CancelEventArgs e)
         {
             if (_vm != null)
                 _vm.Dispose();
         }
-        private static readonly Point[] CenterlineMap = new Point[]
-        {
-            new Point(247.0, 46.6),
-            new Point(262.0, 46.6),
-            new Point(279.0, 47.6),
-            new Point(301.0, 48.6),
-            new Point(316.0, 54.6),
-            new Point(327.0, 62.6),
-            new Point(333.0, 68.6),
-            new Point(343.0, 75.6),
-            new Point(349.0, 85.6),
-            new Point(354.0, 90.6),
-            new Point(359.0, 97.6),
-            new Point(364.0, 100.6),
-            new Point(367.0, 108.6),
-            new Point(371.0, 116.6),
-            new Point(374.0, 124.6),
-            new Point(376.0, 131.6),
-            new Point(380.0, 143.6),
-            new Point(380.0, 151.6),
-            new Point(382.0, 161.6),
-            new Point(382.0, 174.6),
-            new Point(382.0, 186.6),
-            new Point(382.0, 198.6),
-            new Point(383.0, 210.6),
-            new Point(383.0, 221.6),
-            new Point(383.0, 230.6),
-            new Point(383.0, 240.6),
-            new Point(382.0, 251.6),
-            new Point(382.0, 260.6),
-            new Point(382.0, 268.6),
-            new Point(381.0, 276.6),
-            new Point(382.0, 282.6),
-            new Point(382.0, 293.6),
-            new Point(381.0, 300.6),
-            new Point(382.0, 305.6),
-            new Point(382.0, 317.6),
-            new Point(382.0, 328.6),
-            new Point(382.0, 337.6),
-            new Point(381.0, 345.6),
-            new Point(381.0, 353.6),
-            new Point(381.0, 364.6),
-            new Point(381.0, 378.6),
-            new Point(381.0, 388.6),
-            new Point(381.0, 394.6),
-            new Point(381.0, 404.6),
-            new Point(382.0, 411.6),
-            new Point(382.0, 420.6),
-            new Point(382.0, 432.6),
-            new Point(382.0, 443.6),
-            new Point(380.0, 453.6),
-            new Point(379.0, 466.6),
-            new Point(377.0, 475.6),
-            new Point(375.0, 487.6),
-            new Point(372.0, 496.6),
-            new Point(365.0, 509.6),
-            new Point(362.0, 517.6),
-            new Point(358.0, 524.6),
-            new Point(349.0, 533.6),
-            new Point(344.0, 538.6),
-            new Point(339.0, 542.6),
-            new Point(330.0, 547.6),
-            new Point(324.0, 554.6),
-            new Point(312.0, 559.6),
-            new Point(305.0, 562.6),
-            new Point(291.0, 565.6),
-            new Point(279.0, 566.6),
-            new Point(264.0, 570.6),
-            new Point(244.0, 570.6),
-            new Point(229.0, 571.6),
-            new Point(215.0, 571.6),
-            new Point(203.0, 571.6),
-            new Point(193.0, 568.6),
-            new Point(173.0, 568.6),
-            new Point(155.0, 566.6),
-            new Point(140.0, 562.6),
-            new Point(123.0, 555.6),
-            new Point(107.0, 544.6),
-            new Point(97.0, 538.6),
-            new Point(85.0, 527.6),
-            new Point(78.0, 510.6),
-            new Point(75.0, 494.6),
-            new Point(75.0, 475.6),
-            new Point(75.0, 454.6),
-            new Point(75.0, 427.6),
-            new Point(77.0, 406.6),
-            new Point(78.0, 385.6),
-            new Point(78.0, 367.6),
-            new Point(79.0, 350.6),
-            new Point(80.0, 331.6),
-            new Point(81.0, 312.6),
-            new Point(81.0, 297.6),
-            new Point(81.0, 287.6),
-            new Point(81.0, 271.6),
-            new Point(83.0, 259.6),
-            new Point(86.0, 245.6),
-            new Point(86.0, 233.6),
-            new Point(87.0, 219.6),
-            new Point(87.0, 207.6),
-            new Point(89.0, 192.6),
-            new Point(90.0, 179.6),
-            new Point(90.0, 167.6),
-            new Point(91.0, 152.6),
-            new Point(91.0, 136.6),
-            new Point(94.0, 124.6),
-            new Point(97.0, 113.6),
-            new Point(104.0, 103.6),
-            new Point(112.0, 91.6),
-            new Point(120.0, 81.6),
-            new Point(130.0, 72.6),
-            new Point(137.0, 66.6),
-            new Point(145.0, 61.6),
-            new Point(155.0, 55.6),
-            new Point(164.0, 52.6),
-            new Point(172.0, 51.6),
-            new Point(184.0, 48.6),
-            new Point(196.0, 47.6),
-            new Point(205.0, 47.6),
-            new Point(217.0, 46.6),
-            new Point(229.0, 46.6),
-            new Point(240.0, 45.6),
-        };
 
         // Load image to code
         private void LoadTrackImage()
         {
             BitmapImage original = new BitmapImage(
-                    new Uri("C:/Users/TelemetryK3_06/Downloads/map.jpg", UriKind.Absolute));
+                    new Uri("D:/Downloads/map.jpg", UriKind.Absolute));
             TransformedBitmap rotated = new TransformedBitmap(original, new RotateTransform(90));
             TrackImage.Source = rotated;
         }
+
+        private static readonly Point[] CenterlineMap = new Point[]
+        {
+            new Point(282.8, 61.2),
+            new Point(299.6, 64.4),
+            new Point(318.0, 72.4),
+            new Point(329.2, 78.0),
+            new Point(339.6, 86.0),
+            new Point(349.2, 95.6),
+            new Point(358.8, 104.4),
+            new Point(368.4, 117.2),
+            new Point(373.2, 126.0),
+            new Point(378.0, 138.8),
+            new Point(380.4, 143.6),
+            new Point(382.8, 155.6),
+            new Point(386.8, 168.4),
+            new Point(386.8, 181.2),
+            new Point(386.8, 190.8),
+            new Point(387.6, 203.6),
+            new Point(389.2, 218.0),
+            new Point(389.2, 231.6),
+            new Point(389.2, 247.6),
+            new Point(387.6, 262.0),
+            new Point(386.8, 274.8),
+            new Point(386.8, 294.8),
+            new Point(386.8, 310.8),
+            new Point(386.0, 320.4),
+            new Point(384.4, 339.6),
+            new Point(384.4, 355.6),
+            new Point(384.4, 365.2),
+            new Point(383.6, 376.4),
+            new Point(383.6, 389.2),
+            new Point(384.4, 400.4),
+            new Point(383.6, 418.0),
+            new Point(384.4, 430.0),
+            new Point(382.8, 441.2),
+            new Point(382.8, 451.6),
+            new Point(382.0, 464.4),
+            new Point(381.2, 478.0),
+            new Point(381.2, 489.2),
+            new Point(381.2, 503.6),
+            new Point(378.8, 516.4),
+            new Point(378.0, 528.4),
+            new Point(375.6, 538.8),
+            new Point(371.6, 555.6),
+            new Point(369.2, 564.4),
+            new Point(365.2, 575.6),
+            new Point(361.2, 585.2),
+            new Point(355.6, 592.4),
+            new Point(346.8, 599.6),
+            new Point(338.8, 605.2),
+            new Point(330.0, 610.0),
+            new Point(322.8, 615.6),
+            new Point(313.2, 622.0),
+            new Point(304.4, 626.0),
+            new Point(290.8, 629.2),
+            new Point(267.6, 630.8),
+            new Point(250.8, 632.4),
+            new Point(233.2, 631.6),
+            new Point(220.4, 632.4),
+            new Point(208.4, 631.6),
+            new Point(188.4, 631.6),
+            new Point(166.8, 631.6),
+            new Point(147.6, 630.0),
+            new Point(122.8, 626.0),
+            new Point(98.0, 618.8),
+            new Point(84.4, 609.2),
+            new Point(67.6, 591.6),
+            new Point(54.8, 568.4),
+            new Point(47.6, 553.2),
+            new Point(39.6, 522.8),
+            new Point(35.6, 492.4),
+            new Point(37.2, 474.0),
+            new Point(38.0, 448.4),
+            new Point(38.0, 430.0),
+            new Point(37.2, 413.2),
+            new Point(38.0, 395.6),
+            new Point(39.6, 382.8),
+            new Point(39.6, 364.4),
+            new Point(39.6, 345.2),
+            new Point(38.8, 321.2),
+            new Point(40.4, 305.2),
+            new Point(42.8, 289.2),
+            new Point(45.2, 275.6),
+            new Point(45.2, 256.4),
+            new Point(47.6, 235.6),
+            new Point(47.6, 220.4),
+            new Point(49.2, 205.2),
+            new Point(49.2, 186.0),
+            new Point(50.8, 169.2),
+            new Point(55.6, 152.4),
+            new Point(64.4, 131.6),
+            new Point(74.8, 111.6),
+            new Point(86.0, 99.6),
+            new Point(102.0, 87.6),
+            new Point(115.6, 78.0),
+            new Point(127.6, 74.8),
+            new Point(144.4, 70.0),
+            new Point(157.2, 66.0),
+            new Point(171.6, 62.8),
+            new Point(184.4, 60.4),
+            new Point(201.2, 58.0),
+            new Point(214.0, 57.2),
+            new Point(230.8, 56.4),
+            new Point(245.2, 54.8),
+            new Point(255.6, 54.8),
+            new Point(269.2, 55.6),
+            new Point(282.0, 58.0),
+        };
 
         private double CalculateTotalLength()
         {
@@ -238,13 +236,39 @@ namespace GNDServer2
                 _timer.Interval = TimeSpan.FromMilliseconds(50);
                 _timer.Tick += (s, e) =>
                 {
-                    double distance = _vm.Distance; // mét thực từ ViewModel
-                    Point pos = GetPositionOnPath(distance);
-                    Canvas.SetLeft(_carDot, pos.X - 6);
-                    Canvas.SetTop(_carDot, pos.Y - 6);
+                    double distance = _vm.Distance;
+                    Point rawPos = GetPositionOnPath(distance);
+                    Point canvasPos = ConvertToCanvasPoint(rawPos); 
+                    Canvas.SetLeft(_carDot, canvasPos.X - 6);
+                    Canvas.SetTop(_carDot, canvasPos.Y - 6);
                 };
                 _timer.Start();
             }
+        }
+        private Point ConvertToCanvasPoint(Point originalPoint)
+        {
+            if (TrackImage.Source == null) return originalPoint;
+
+            double imgNaturalW = TrackImage.Source.Width;
+            double imgNaturalH = TrackImage.Source.Height;
+            double controlW = TrackImage.ActualWidth;
+            double controlH = TrackImage.ActualHeight;
+
+            // Tính scale với Stretch="Uniform"
+            double scale = Math.Min(controlW / imgNaturalW, controlH / imgNaturalH);
+
+            // Kích thước ảnh sau khi scale
+            double renderedW = imgNaturalW * scale;
+            double renderedH = imgNaturalH * scale;
+
+            // Offset letterbox (căn giữa)
+            double offsetX = (controlW - renderedW) / 2.0;
+            double offsetY = (controlH - renderedH) / 2.0;
+
+            return new Point(
+                originalPoint.X * scale + offsetX,
+                originalPoint.Y * scale + offsetY
+            );
         }
 
         // Handle click to get Tracking Points and draw lines && calling RestartSimulation
@@ -272,7 +296,7 @@ namespace GNDServer2
             Canvas.SetLeft(dot, p.X - 3);
             Canvas.SetTop(dot, p.Y - 3);
             OverlayCanvas.Children.Add(dot);
-            drawnElements.Add(dot); // ← THÊM
+            drawnElements.Add(dot); 
         }
         private void DrawLabel(Point p, int index)
         {
@@ -286,7 +310,7 @@ namespace GNDServer2
             Canvas.SetLeft(tb, p.X + 6);
             Canvas.SetTop(tb, p.Y - 10);
             OverlayCanvas.Children.Add(tb);
-            drawnElements.Add(tb); // ← THÊM
+            drawnElements.Add(tb); 
         }
         private void DrawLine(Point p1, Point p2)
         {
@@ -355,7 +379,7 @@ namespace GNDServer2
             sb.AppendLine("private static readonly Point[] CenterlineMap = new Point[]");
             sb.AppendLine("{");
             foreach (var p in centerlinePoints)
-                sb.AppendLine($"    new Point({p.X:F1}, {p.Y:F1}),");
+            sb.AppendLine($"    new Point({p.X:F1}, {p.Y:F1}),");
             sb.AppendLine("};");
             string code = sb.ToString();
             // Copy vào clipboard

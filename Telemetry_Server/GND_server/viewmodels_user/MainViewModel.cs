@@ -1,15 +1,19 @@
-using GNDServer2.Services_user;
+using GNDServer.Services_user;
+using OpenCvSharp;
+using OpenCvSharp.WpfExtensions;
 using SciChart.Charting.Model.DataSeries;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
 
-namespace GNDServer2.Viewmodels_user
+namespace GNDServer.Viewmodels_user
 {
     public class MainViewModel : IDisposable, INotifyPropertyChanged
     {
@@ -214,6 +218,14 @@ namespace GNDServer2.Viewmodels_user
             set => SetField(ref _Gear, value);
         }
 
+        private BitmapImage _videoFrame;
+        public BitmapImage VideoFrame
+        {
+            get => _videoFrame;
+            set { _videoFrame = value; OnPropertyChanged(nameof(VideoFrame)); }
+        }
+        private VideoService _videoService = new VideoService();
+
         public XyDataSeries<double, double> TrackBaseSeries { get; private set; }
         public XyDataSeries<double, double> CarMakersSeries { get; private set; }
         public XyDataSeries<double, double> IMUxSeries { get; private set; }
@@ -250,6 +262,11 @@ namespace GNDServer2.Viewmodels_user
             _service = new TelemetryService();
             _service.OnDataReceived += Service_OnDataReceived; // While receiving flag OnDataReceived, calling Service_OnDataReceived (+= is registing handler function)
             _service.Start();
+            _videoService.FrameReceived += frame =>
+            {
+                App.Current.Dispatcher.Invoke(() => VideoFrame = frame);
+            };
+            _videoService.Start(5005);
         }
 
         //Collecting data and calling UI-Thread to update chart & UI 
@@ -327,6 +344,7 @@ namespace GNDServer2.Viewmodels_user
                 _service.Stop();
                 _service.Dispose();
                 _service.OnDataReceived -= Service_OnDataReceived;
+                _videoService.Stop();
             }
         }
     }
