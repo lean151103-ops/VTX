@@ -1115,7 +1115,165 @@
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <Grid Background="#273240">
-                            <!-- BUILD BLOCK TAB 2 Ở ĐÂY -->
+                            <Grid Background="#273240">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <!-- Lap selector -->
+                                    <RowDefinition Height="*"/>
+                                    <!-- Charts -->
+                                </Grid.RowDefinitions>
+
+                                <!-- LAP SELECTOR BAR -->
+                                <Border Grid.Row="0"
+                                        Background="#1F2733"
+                                        Padding="10,6"
+                                        Margin="0,0,0,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Select Lap:"
+                                                   Foreground="White"
+                                                   FontSize="14"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,10,0"/>
+                                        <ComboBox ItemsSource="{Binding SummaryLaps}"
+                                                  SelectedItem="{Binding SelectedSummaryLap}"
+                                                  DisplayMemberPath="LapNumber"
+                                                  Width="120"
+                                                  Background="#2E3A4A"
+                                                  Foreground="Black"
+                                                  BorderBrush="#374252"/>
+                                        <TextBlock Text="{Binding SelectedSummaryLap.LapTimeText, StringFormat='  ⏱ LapTime: {0}'}"
+                                                   Foreground="#AEB7C2"
+                                                   FontSize="13"
+                                                   VerticalAlignment="Center"
+                                                   Margin="20,0,0,0"/>
+                                        <TextBlock Text="{Binding SelectedSummaryLap.MaxSpeed, StringFormat='     Max Speed: {0:F1} km/h'}"
+                                                   Foreground="#6BC56B"
+                                                   FontSize="13"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding SelectedSummaryLap.AvgSpeed, StringFormat='     Avg Speed: {0:F1} km/h'}"
+                                                   Foreground="#5E9BB3"
+                                                   FontSize="13"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- CHARTS GRID -->
+                                <Grid Grid.Row="1">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- SPEED vs DISTANCE -->
+                                    <Border Grid.Row="0" Background="#1F2733" Margin="0,0,0,6">
+                                        <DockPanel LastChildFill="True">
+                                            <Border DockPanel.Dock="Top" Height="25" Background="#2E3A4A">
+                                                <TextBlock Text="Speed (km/h) vs Distance (m)"
+                                                           Foreground="White" FontSize="12"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <s:SciChartSurface Background="#1B2430" BorderThickness="0">
+                                                <s:SciChartSurface.XAxis>
+                                                    <s:NumericAxis AutoRange="Never"
+                                                                   VisibleRange="0,4500"
+                                                                   TextFormatting="#,##0 'm'"
+                                                                   DrawMajorBands="False"
+                                                                   DrawMinorGridLines="False"
+                                                                   DrawMajorGridLines="True"
+                                                                   TickTextBrush="White"/>
+                                                </s:SciChartSurface.XAxis>
+                                                <s:SciChartSurface.YAxis>
+                                                    <s:NumericAxis AutoRange="Never"
+                                                                   VisibleRange="0,320"
+                                                                   TextFormatting="0 'km/h'"
+                                                                   DrawMajorBands="False"
+                                                                   DrawMinorGridLines="False"
+                                                                   DrawMajorGridLines="True"
+                                                                   TickTextBrush="White"/>
+                                                </s:SciChartSurface.YAxis>
+                                                <s:SciChartSurface.RenderableSeries>
+                                                    <s:FastLineRenderableSeries DataSeries="{Binding SummarySpeedSeries}"
+                                                                                Stroke="#5E9BB3"
+                                                                                StrokeThickness="2"/>
+                                                </s:SciChartSurface.RenderableSeries>
+                                            </s:SciChartSurface>
+                                        </DockPanel>
+                                    </Border>
+
+                                    <!-- THROTTLE vs DISTANCE -->
+                                    <Border Grid.Row="1" Background="#1F2733" Margin="0,0,0,6">
+                                        <DockPanel LastChildFill="True">
+                                            <Border DockPanel.Dock="Top" Height="25" Background="#2E3A4A">
+                                                <TextBlock Text="Throttle (%) vs Distance (m)"
+                                                           Foreground="White" FontSize="12"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <s:SciChartSurface Background="#1B2430" BorderThickness="0">
+                                                <s:SciChartSurface.XAxis>
+                                                    <s:NumericAxis AutoRange="Never"
+                                                                   VisibleRange="0,4500"
+                                                                   TextFormatting="#,##0 'm'"
+                                                                   DrawMajorBands="False"
+                                                                   DrawMinorGridLines="False"
+                                                                   DrawMajorGridLines="True"
+                                                                   TickTextBrush="White"/>
+                                                </s:SciChartSurface.XAxis>
+                                                <s:SciChartSurface.YAxis>
+                                                    <s:NumericAxis AutoRange="Never"
+                                                                   VisibleRange="0,110"
+                                                                   TextFormatting="0 '%'"
+                                                                   DrawMajorBands="False"
+                                                                   DrawMinorGridLines="False"
+                                                                   DrawMajorGridLines="True"
+                                                                   TickTextBrush="White"/>
+                                                </s:SciChartSurface.YAxis>
+                                                <s:SciChartSurface.RenderableSeries>
+                                                    <s:FastLineRenderableSeries DataSeries="{Binding SummaryThrottleSeries}"
+                                                    Stroke="#6BC56B"
+                                                    StrokeThickness="2"/>
+                                                </s:SciChartSurface.RenderableSeries>
+                                            </s:SciChartSurface>
+                                        </DockPanel>
+                                    </Border>
+
+                                    <!-- STEERING vs DISTANCE -->
+                                    <Border Grid.Row="2" Background="#1F2733" Margin="0,0,0,0">
+                                        <DockPanel LastChildFill="True">
+                                            <Border DockPanel.Dock="Top" Height="25" Background="#2E3A4A">
+                                                <TextBlock Text="Steering (°) vs Distance (m)"
+                                                           Foreground="White" FontSize="12"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <s:SciChartSurface Background="#1B2430" BorderThickness="0">
+                                                <s:SciChartSurface.XAxis>
+                                                    <s:NumericAxis AutoRange="Never"
+                                                                   VisibleRange="0,4500"
+                                                                   TextFormatting="#,##0 'm'"
+                                                                   DrawMajorBands="False"
+                                                                   DrawMinorGridLines="False"
+                                                                   DrawMajorGridLines="True"
+                                                                   TickTextBrush="White"/>
+                                                </s:SciChartSurface.XAxis>
+                                                <s:SciChartSurface.YAxis>
+                                                    <s:NumericAxis AutoRange="Never"
+                                                                   VisibleRange="-40,40"
+                                                                   TextFormatting="0 '°'"
+                                                                   DrawMajorBands="False"
+                                                                   DrawMinorGridLines="False"
+                                                                   DrawMajorGridLines="True"
+                                                                   TickTextBrush="White"/>
+                                                </s:SciChartSurface.YAxis>
+                                                <s:SciChartSurface.RenderableSeries>
+                                                    <s:FastLineRenderableSeries DataSeries="{Binding SummarySteeringSeries}"
+                                                                                Stroke="#E8D88D"
+                                                                                StrokeThickness="2"/>
+                                                </s:SciChartSurface.RenderableSeries>
+                                            </s:SciChartSurface>
+                                        </DockPanel>
+                                    </Border>
+                                </Grid>
+                            </Grid>
                         </Grid>
                     </ScrollViewer>
                 </Grid>

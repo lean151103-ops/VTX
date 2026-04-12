@@ -1,6 +1,4 @@
 using GNDServer.Services_user;
-using OpenCvSharp;
-using OpenCvSharp.WpfExtensions;
 using SciChart.Charting.Model.DataSeries;
 using System;
 using System.Collections.Generic;
@@ -11,7 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Media.Media3D;
+using System.Collections.ObjectModel;
 
 namespace GNDServer.Viewmodels_user
 {
@@ -33,6 +31,20 @@ namespace GNDServer.Viewmodels_user
             if (temp < 300) return Brushes.Yellow;
             if (temp < 500) return Brushes.Orange;
             return Brushes.Red;
+        }
+
+        public ObservableCollection<LapSummary> SummaryLaps { get; } = new ObservableCollection<LapSummary>();
+
+        private LapSummary _selectedSummaryLap;
+        public LapSummary SelectedSummaryLap
+        {
+            get => _selectedSummaryLap;
+            set
+            {
+                _selectedSummaryLap = value;
+                OnPropertyChanged(nameof(SelectedSummaryLap));
+                RefreshSummaryCharts();
+            }
         }
 
         private readonly TelemetryService _service;
@@ -233,6 +245,9 @@ namespace GNDServer.Viewmodels_user
         public XyDataSeries<double, double> ThrottleDataSeries { get; private set; }
         public XyDataSeries<double, double> BrakeDataSeries { get; private set; }
         public XyDataSeries<double, double> FuelDataSeries { get; private set; }
+        public IXyDataSeries<double, double> SummarySpeedSeries { get; } = new XyDataSeries<double, double>();
+        public IXyDataSeries<double, double> SummaryThrottleSeries { get; } = new XyDataSeries<double, double>();
+        public IXyDataSeries<double, double> SummarySteeringSeries { get; } = new XyDataSeries<double, double>();
 
         public MainViewModel()
         {
@@ -326,8 +341,56 @@ namespace GNDServer.Viewmodels_user
                 TireRLBrush = GetBrakeBrush(data.temp_tireRL);
                 TireRRTemp = data.temp_tireRR;
                 TireRRBrush = GetBrakeBrush(data.temp_tireRR);
+                FeedSummary(data.lapCounter, (uint)(data.lapTime * 1000),
+                data.distance, data.speed,
+                data.throttle, data.steering);
                 _xIndex++;
             });
+        }
+
+        private LapSummary _currentLap = new LapSummary { LapNumber = 0 };
+        private int _lastLapNumber = -1;
+
+        private void FeedSummary(ushort lapCounter, uint lapTimeMs,
+                                  ushort distance, ushort speed,
+                                  ushort throttle, double steering)
+        {
+            if (_lastLapNumber == -1) _lastLapNumber = lapCounter;
+
+            // Lap mới -> lưu lap cũ
+            if (lapCounter != _lastLapNumber)
+            {
+                _currentLap.LapTimeMs = lapTimeMs;
+                _currentLap.Calculate();
+                App.Current.Dispatcher.Invoke(() => SummaryLaps.Add(_currentLap));
+
+                _currentLap = new LapSummary { LapNumber = lapCounter };
+                _lastLapNumber = lapCounter;
+            }
+
+            _currentLap.Points.Add((distance, speed, throttle, steering));
+        }
+
+        // ---- Gọi khi chọn lap ----
+        private void RefreshSummaryCharts()
+        {
+            if (_selectedSummaryLap == null) return;
+
+            using (SummarySpeedSeries.SuspendUpdates())
+            using (SummaryThrottleSeries.SuspendUpdates())
+            using (SummarySteeringSeries.SuspendUpdates())
+            {
+                SummarySpeedSeries.Clear();
+                SummaryThrottleSeries.Clear();
+                SummarySteeringSeries.Clear();
+
+                foreach (var p in _selectedSummaryLap.Points)
+                {
+                    SummarySpeedSeries.Append(p.Distance, p.Speed);
+                    SummaryThrottleSeries.Append(p.Distance, p.Throttle);
+                    SummarySteeringSeries.Append(p.Distance, p.Steering);
+                }
+            }
         }
 
         // If event OnPropertyChanged then updating the property to app (CallMemberName to don't need to pass propertyName)

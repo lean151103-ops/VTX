@@ -10,7 +10,7 @@ namespace GNDServer.Services_user
     public struct TelemetryData
     {
         public ushort lapCounter;
-        public uint lapTime;
+        public float lapTime;
         public ushort distance;
         public ushort speed;
         public ushort throttle;
@@ -162,6 +162,7 @@ namespace GNDServer.Services_user
             ushort rawSteering = BitConverter.ToUInt16(buffer, 12);
             float rawSpeedMs = rawSpeed / 3.6f; // Convert km/h to m/s for calculations
             // 2. Tính toán các giá trị mô phỏng
+            float lapTimeDecoded = rawLapTime / 1000.0f; // Convert ms to seconds
             float calculatedSteering = (float)(((int)rawSteering - 500) * 35.0 / 500.0);
 
             // Tính gia tốc dọc (IMU X) trước khi cập nhật _prevSpeed
@@ -217,7 +218,7 @@ namespace GNDServer.Services_user
             return new TelemetryData
             {
                 lapCounter = rawLapCounter,
-                lapTime = rawLapTime,
+                lapTime = lapTimeDecoded,
                 distance = rawDistance,
                 speed = rawSpeed,
                 throttle = rawThrottle,
