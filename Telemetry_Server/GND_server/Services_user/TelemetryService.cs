@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Markup;
@@ -9,6 +10,11 @@ namespace GNDServer.Services_user
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct TelemetryData
     {
+        public string clientKey;
+        public string ip;
+        public int port;
+
+        public float errorRate;
         public ushort lapCounter;
         public float lapTime;
         public ushort distance;
@@ -29,6 +35,11 @@ namespace GNDServer.Services_user
         public ushort temp_tireFR;
         public ushort temp_tireRL;
         public ushort temp_tireRR;
+
+        public uint lastSeq;
+        public ulong totalExpected;
+        public ulong totalLost;
+        public uint packetDeltaMs;
     }
 
     internal class TelemetryService : IDisposable
@@ -81,6 +92,8 @@ namespace GNDServer.Services_user
         [DllImport("Telemetry_Native.dll", CallingConvention = CallingConvention.Cdecl)]
         private static extern int getLastData(byte[] buffer, int bufferSize, out uint version);
 
+        [DllImport("Telemetry_Native.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int getTotalClients();
 
         // Starts the telemetry server and create _cts to cancel capture loop when stopping & Start the capture loop in a separate task
         public void Start()
@@ -124,10 +137,9 @@ namespace GNDServer.Services_user
                 {
                     _lastVersion = version;
                     TelemetryData data = Parse(buffer);
-                    Console.WriteLine($"DEBUG DATA: Lapcounter={data.lapCounter} | Laptime={data.lapTime} | Dist={data.distance} | Speed={data.speed} | Steering={data.steering} | Throttle={data.throttle}");
+                    //Console.WriteLine($"DEBUG DATA: Address={data.clientKey}__{data.ip}:{data.port} Lapcounter={data.lapCounter} | Laptime={data.lapTime} | Dist={data.distance} | Speed={data.speed} | Steering={data.steering} | Throttle={data.throttle} | IMUy={data.imuY}");
                     OnDataReceived?.Invoke(data);  // When having flags trans data to handle ,which registed
                 }
-
                 Thread.Sleep(2);
             }
         }
@@ -140,6 +152,22 @@ namespace GNDServer.Services_user
         // Converts a byte array to a TelemetryData struct using GCHandle to pin the array in memory
         private TelemetryData Parse(byte[] buffer)
         {
+            byte keyLen = buffer[0];
+            int offset = 1 + keyLen;
+            int tailOffset = offset + 14;
+
+            string clientKey = Encoding.ASCII.GetString(buffer, 1, keyLen);
+
+            string ip = "";
+            int port = 0;
+
+            var parts = clientKey.Split(':');
+            if (parts.Length == 2)
+            {
+                ip = parts[0];
+                int.TryParse(parts[1], out port);
+            }
+
             float dt;
             if (_thermalTimer.IsRunning)
             {
@@ -154,13 +182,23 @@ namespace GNDServer.Services_user
             _thermalTimer.Restart();
 
             // 1. Đọc dữ liệu gốc từ buffer
-            ushort rawLapCounter = BitConverter.ToUInt16(buffer, 0);
-            uint rawLapTime = BitConverter.ToUInt32(buffer, 2);
-            ushort rawDistance = BitConverter.ToUInt16(buffer, 6);
-            ushort rawSpeed = BitConverter.ToUInt16(buffer, 8);
-            ushort rawThrottle = BitConverter.ToUInt16(buffer, 10);
-            ushort rawSteering = BitConverter.ToUInt16(buffer, 12);
+            ushort rawLapCounter = BitConverter.ToUInt16(buffer, offset + 0);
+            uint rawLapTime      = BitConverter.ToUInt32(buffer, offset + 2);
+            ushort rawDistance   = BitConverter.ToUInt16(buffer, offset + 6);
+            ushort rawSpeed      = BitConverter.ToUInt16(buffer, offset + 8);
+            ushort rawThrottle   = BitConverter.ToUInt16(buffer, offset + 10);
+            ushort rawSteering   = BitConverter.ToUInt16(buffer, offset + 12);
+
+            uint  rawLastSeq        = BitConverter.ToUInt32(buffer, tailOffset);
+            ulong rawTotalExpected  = BitConverter.ToUInt64(buffer, tailOffset + 4);
+            ulong rawTotalLost      = BitConverter.ToUInt64(buffer, tailOffset + 12);
+            uint  rawDeltaMs        = BitConverter.ToUInt32(buffer, tailOffset + 20);
+
+            float rawErrorRate = (rawTotalExpected > 0)
+                    ? (float)rawTotalLost / rawTotalExpected   // tính lại từ totalLost/totalExpected
+                    : 0f;
             float rawSpeedMs = rawSpeed / 3.6f; // Convert km/h to m/s for calculations
+
             // 2. Tính toán các giá trị mô phỏng
             float lapTimeDecoded = rawLapTime / 1000.0f; // Convert ms to seconds
             float calculatedSteering = (float)(((int)rawSteering - 500) * 35.0 / 500.0);
@@ -202,14 +240,12 @@ namespace GNDServer.Services_user
             ushort simulatedTempTire = (ushort)T_tire;
 
             // Giả lập xăng (Dùng rawDistance vừa đọc)
-            float rpmNorm = simulatedRpm / rpm_max;        // 0~1
+            float rpmNorm = simulatedRpm / rpm_max;            // 0~1
             float throttleNorm = rawThrottle / 100.0f;         // 0~1
             float fuelRate = max_drain_rate * rpmNorm * throttleNorm; // %/s
             _fuelLevel -= fuelRate * dt;
             _fuelLevel = Math.Max(0f, _fuelLevel);             // không âm
-            ushort simulatedFuel = (ushort)_fuelLevel;          // 0~100
-            Console.WriteLine($"DEBUG SIMULATION:Delta_Temp_Brake={delta_Temp_Brake} | Delta_Temp_Tire={delta_Temp_Tire}  | Fuel={simulatedFuel}");
-
+            ushort simulatedFuel = (ushort)_fuelLevel;         // 0~100
 
             // Cập nhật tốc độ cũ cho lần sau
             _prevSpeed = rawSpeed;
@@ -217,6 +253,11 @@ namespace GNDServer.Services_user
 
             return new TelemetryData
             {
+                clientKey = clientKey,
+                ip = ip,
+                port = port,
+
+                errorRate = rawErrorRate,
                 lapCounter = rawLapCounter,
                 lapTime = lapTimeDecoded,
                 distance = rawDistance,
@@ -242,7 +283,12 @@ namespace GNDServer.Services_user
                 temp_tireFL = simulatedTempTire,
                 temp_tireFR = simulatedTempTire,
                 temp_tireRL = simulatedTempTire,
-                temp_tireRR = simulatedTempTire
+                temp_tireRR = simulatedTempTire,
+
+                lastSeq         = rawLastSeq,
+                totalExpected   = rawTotalExpected,
+                totalLost       = rawTotalLost,
+                packetDeltaMs   = rawDeltaMs
             };
         }
 

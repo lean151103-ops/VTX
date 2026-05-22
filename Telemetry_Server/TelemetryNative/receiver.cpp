@@ -1,18 +1,26 @@
+// Updating multiple clients but not completed 
 #include "pch.h"
 #include <stdio.h>
 #include <iostream>
 #include <vector>
-#include <winsock2.h>
-#include <ws2tcpip.h>
+//#include <winsock2.h>
+//#include <ws2tcpip.h>
 #include <windows.h>
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <unordered_map>
+#include <string>
 
 #define TELEMETRYNATIVE_EXPORTS
 #include "receiver.h"
 #pragma comment(lib, "Ws2_32.lib")
 
+// ─────────────────────────────────────────────
+//  CONFIG UART
+// ─────────────────────────────────────────────
+#define UART_PORT   "COM5"
+#define UART_BAUD   115200
 
 static std::atomic<bool> running(false);
 static std::thread udpThread;
@@ -21,8 +29,29 @@ static std::atomic<unsigned int> version(0);
 static std::vector<uint8_t> _data;
 static std::mutex dataMutex;
 
-static SOCKET g_sock = INVALID_SOCKET;
-static std::mutex g_sockMutex;
+static HANDLE g_hSerial = INVALID_HANDLE_VALUE;
+static std::mutex g_serialMutex;
+
+struct ClientContext {
+	enum State { WAIT_H1, WAIT_H2, RECEIVE_SEQ_LEN, RECEIVE_PAYLOAD_CRC };
+	State state = WAIT_H1;
+	std::vector<uint8_t> fullFrame;
+	uint8_t length = 0;
+	size_t frameSize = 0;
+	std::vector<uint8_t> lastPayload; 
+	unsigned int version = 0;
+	ULONGLONG lastSeenTick = 0;
+	ULONGLONG lastPacketTick = 0;
+
+	// Tracking sequence numbers for error rate calculation
+	uint32_t lastSeq = UINT32_MAX;
+	uint64_t totalExpected = 0;
+	uint64_t totalLost = 0;
+	float    errorRate = 0.0f;
+};
+
+static std::unordered_map<std::string, ClientContext> _clientMap; // key = "ip:port"
+static std::mutex clientsMutex;
 
 uint32_t crc32(const uint8_t data[], size_t length) {
 	uint32_t crc = 0xFFFFFFFF;
@@ -56,68 +85,135 @@ bool checkFrame(const std::vector<uint8_t>& recvFrame, size_t frameSize) {
 	return (crc_rx == crc_calc);
 }
 
-bool UnpackFrame(const uint8_t recvData[], int len) {
-	enum State { WAIT_H1, WAIT_H2, RECEIVE_SEQ_LEN, RECEIVE_PAYLOAD_CRC };
-	static State state = WAIT_H1;
-	static std::vector<uint8_t> fullFrame;
-	static uint8_t length = 0;
-	static size_t frameSize = 0;
-	static int bad = 0;
-	static int good = 0;
+bool UnpackFrame(const uint8_t recvData[], int len, const std::string& clientKey) {
+	std::lock_guard<std::mutex> lock(clientsMutex);
+	ClientContext& ctx = _clientMap[clientKey];
+	ctx.lastSeenTick = GetTickCount64();
 	bool foundGoodFrame = false;
 	for (int i = 0; i < len; i++) {
 		uint8_t b = recvData[i];
-		switch (state) {
-		case WAIT_H1:
+		switch (ctx.state) {
+		case ClientContext::WAIT_H1:
 			if (b == 0xAA) {
-				fullFrame.clear();
-				fullFrame.push_back(b);
-				state = WAIT_H2;
+				ctx.fullFrame.clear();
+				ctx.fullFrame.push_back(b);
+				ctx.state = ClientContext::WAIT_H2;
 			}
 			break;
-		case WAIT_H2:
+		case ClientContext::WAIT_H2:
 			if (b == 0x55) {
-				fullFrame.push_back(b);
-				state = RECEIVE_SEQ_LEN;
+				ctx.fullFrame.push_back(b);
+				ctx.state = ClientContext::RECEIVE_SEQ_LEN;
 			}
 			else if (b == 0xAA) {
-				fullFrame.clear();
-				fullFrame.push_back(b);
+				ctx.fullFrame.clear();
+				ctx.fullFrame.push_back(b);
 			}
-			else state = WAIT_H1;
+			else ctx.state = ClientContext::WAIT_H1;
 			break;
 
-		case RECEIVE_SEQ_LEN:
-			fullFrame.push_back(b);
-			if (fullFrame.size() == 7) {
-				length = fullFrame[6];
-				state = RECEIVE_PAYLOAD_CRC;
-				frameSize = 2 + 4 + 1 + (size_t)length + 4; // 2 header + 4 seq + 1 len + payload + 4 crc
+		case ClientContext::RECEIVE_SEQ_LEN:
+			ctx.fullFrame.push_back(b);
+			if (ctx.fullFrame.size() == 7) {
+				ctx.length = ctx.fullFrame[6];
+				ctx.state = ClientContext::RECEIVE_PAYLOAD_CRC;
+				ctx.frameSize = 2 + 4 + 1 + (size_t)ctx.length + 4; // 2 header + 4 seq + 1 len + payload + 4 crc
 			};
 			break;
 
-		case RECEIVE_PAYLOAD_CRC:
-			fullFrame.push_back(b);
-			if (fullFrame.size() == frameSize) {
-				if (checkFrame(fullFrame, frameSize)) {
-					{
-						std::lock_guard<std::mutex> lock(dataMutex);
-						_data.assign(fullFrame.begin() + 7, fullFrame.begin() + 7 + length);
-						version.fetch_add(1, std::memory_order_relaxed);
+		case ClientContext::RECEIVE_PAYLOAD_CRC:
+			ctx.fullFrame.push_back(b);
+			if (ctx.fullFrame.size() == ctx.frameSize) {
+
+				uint32_t seq = (uint8_t)ctx.fullFrame[2]
+					| ((uint8_t)ctx.fullFrame[3] << 8)
+					| ((uint8_t)ctx.fullFrame[4] << 16)
+					| ((uint8_t)ctx.fullFrame[5] << 24);
+
+				bool isGood = checkFrame(ctx.fullFrame, ctx.frameSize);
+
+				if (isGood) {
+					bool isFirstFrame = (ctx.lastSeq == UINT32_MAX);
+					if (!isFirstFrame) {
+						uint32_t expectedSeq = ctx.lastSeq + 1;
+						if (seq >= expectedSeq) {
+							uint32_t lostCount = seq - expectedSeq;
+							ctx.totalLost += lostCount;
+							ctx.totalExpected += lostCount;
+						}
 					}
-					good++;
-					uint32_t seq = (uint8_t)fullFrame[2]
-						| ((uint8_t)fullFrame[3] << 8)
-						| ((uint8_t)fullFrame[4] << 16)
-						| ((uint8_t)fullFrame[5] << 24);
-					//std::cout << "GOODFRAME: " << seq << std::endl;
-					foundGoodFrame = true;
+					ctx.lastSeq = seq;
+					ctx.totalExpected += 1;
 				}
 				else {
-					std::cout << "BADFRAME: " << bad << std::endl;
-					bad++;
+					ctx.totalExpected += 1;
+					ctx.totalLost += 1;
+					std::cout << "BADFRAME seq: " << seq << std::endl;
 				}
-				state = WAIT_H1;
+				ctx.errorRate = (float)ctx.totalLost / (float)ctx.totalExpected;
+
+				if (isGood) {
+					std::lock_guard<std::mutex> datalock(dataMutex);
+					ctx.lastPayload.assign(ctx.fullFrame.begin() + 7, ctx.fullFrame.begin() + 7 + ctx.length);
+					ctx.version++;
+					ctx.lastSeenTick = GetTickCount64();
+
+					ULONGLONG nowTick = GetTickCount64();
+					uint32_t deltaMs = 0;
+					if (ctx.lastPacketTick != 0) {
+						ULONGLONG diff = nowTick - ctx.lastPacketTick;
+						deltaMs = (diff > 0xFFFFFFFF) ? 0xFFFFFFFF : (uint32_t)diff;
+					}
+					ctx.lastPacketTick = nowTick;
+
+					// Packaging _data: [keyLen][key][payload][errorRate 4 byte][deltaMs 4 byte]
+					_data.clear();
+					uint8_t keyLen = (uint8_t)clientKey.size();
+					_data.push_back(keyLen);
+					_data.insert(_data.end(), clientKey.begin(), clientKey.end());
+
+					_data.insert(_data.end(), ctx.lastPayload.begin(), ctx.lastPayload.end());
+
+					_data.push_back((ctx.lastSeq >> 0) & 0xFF);
+					_data.push_back((ctx.lastSeq >> 8) & 0xFF);
+					_data.push_back((ctx.lastSeq >> 16) & 0xFF);
+					_data.push_back((ctx.lastSeq >> 24) & 0xFF);
+
+					uint64_t totalExp = ctx.totalExpected;
+					_data.push_back((totalExp >> 0) & 0xFF);
+					_data.push_back((totalExp >> 8) & 0xFF);
+					_data.push_back((totalExp >> 16) & 0xFF);
+					_data.push_back((totalExp >> 24) & 0xFF);
+					_data.push_back((totalExp >> 32) & 0xFF);
+					_data.push_back((totalExp >> 40) & 0xFF);
+					_data.push_back((totalExp >> 48) & 0xFF);
+					_data.push_back((totalExp >> 56) & 0xFF);
+
+					uint64_t totalLost = ctx.totalLost;
+					_data.push_back((totalLost >> 0) & 0xFF);
+					_data.push_back((totalLost >> 8) & 0xFF);
+					_data.push_back((totalLost >> 16) & 0xFF);
+					_data.push_back((totalLost >> 24) & 0xFF);
+					_data.push_back((totalLost >> 32) & 0xFF);
+					_data.push_back((totalLost >> 40) & 0xFF);
+					_data.push_back((totalLost >> 48) & 0xFF);
+					_data.push_back((totalLost >> 56) & 0xFF);
+
+					// Append deltaMs (4 byte little-endian)
+					_data.push_back((deltaMs >> 0) & 0xFF);
+					_data.push_back((deltaMs >> 8) & 0xFF);
+					_data.push_back((deltaMs >> 16) & 0xFF);
+					_data.push_back((deltaMs >> 24) & 0xFF);
+
+					version.fetch_add(1, std::memory_order_relaxed);
+					std::cout << "Received valid frame from " << clientKey
+						<< " | Payload: " << (int)ctx.length << " bytes"
+						<< " | ErrorRate: " << ctx.errorRate
+						<< " | DeltaMs: " << deltaMs << std::endl;   // ← LOG thêm
+					foundGoodFrame = true;
+				}
+
+				ctx.state = ClientContext::WAIT_H1;
 			}
 			break;
 		}
@@ -125,70 +221,76 @@ bool UnpackFrame(const uint8_t recvData[], int len) {
 	return foundGoodFrame;
 }
 
-static void recvDatafromUDP(int port, std::atomic<bool>& running) {
-	WSADATA wsa;
-	WSAStartup(MAKEWORD(2, 2), &wsa);
-	SOCKET sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (sock == INVALID_SOCKET) {
-		std::cout << "Error to creating socket" << std::endl;
-		WSACleanup();
+// ─────────────────────────────────────────────
+//  Config UART
+// ─────────────────────────────────────────────
+HANDLE initUART(const char* portName, int baudrate) {
+	HANDLE hSerial = CreateFileA(
+		portName,
+		GENERIC_READ | GENERIC_WRITE,
+		0,
+		NULL,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL
+	);
+	if (hSerial == INVALID_HANDLE_VALUE) {
+		std::cerr << "Error opening serial port:" << portName << std::endl;
+		return INVALID_HANDLE_VALUE;
 	}
+	DCB dcb{};
+	dcb.DCBlength = sizeof(dcb);
+	GetCommState(hSerial, &dcb);
+	dcb.BaudRate = baudrate;
+	dcb.ByteSize = 8;
+	dcb.StopBits = ONESTOPBIT;
+	dcb.Parity = NOPARITY;
+	SetCommState(hSerial, &dcb);
+
+	COMMTIMEOUTS timeouts = {};
+	timeouts.ReadIntervalTimeout = MAXDWORD;
+	timeouts.ReadTotalTimeoutConstant = 0;
+	timeouts.ReadTotalTimeoutMultiplier = 0;
+	SetCommTimeouts(hSerial, &timeouts);
+	return hSerial;
+}
+
+static void recvDataFromUART(const char* port, int baud, std::atomic<bool>& running) {
+	HANDLE h = initUART(port, baud);
+	if (h == INVALID_HANDLE_VALUE) return;
 
 	{
-		std::lock_guard<std::mutex> lock(g_sockMutex);
-		g_sock = sock;
+		std::lock_guard<std::mutex> lock(g_serialMutex);
+		g_hSerial = h;
 	}
+	const std::string ip = std::string(port);
+	const int clientPort = 1;
+	const std::string clientKey = ip + ":" + std::to_string(clientPort);
 
-	int timeoutMs = 200;
-	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
+	uint8_t buffer[256];
 
-	sockaddr_in addr{};
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = INADDR_ANY;
+	std::cout << "[UART] Listening on " << port << "...\n";
 
-	if (bind(sock, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
-		std::cerr << "Recv ERROR" << std::endl;
-		closesocket(sock);
-		WSACleanup();
-	}
-	std::cout << "UDP server is listening on port " << port << "...\n";
-	uint8_t buffer[1024];
 	while (running.load()) {
-		// Creating sender variable to know the IP of sender
-		sockaddr_in sender{};
-		int senderSize = sizeof(sender);
-		int receivedBytes = recvfrom(sock, (char*)buffer, sizeof(buffer), 0, (sockaddr*)&sender, &senderSize);
-		if (receivedBytes == SOCKET_ERROR) {
-			int err = WSAGetLastError();
-			if (err == WSAETIMEDOUT) {
-				continue;
-			}
-			std::cerr << "Recv ERROR: " << err << std::endl;
+		DWORD bytesRead = 0;
+		BOOL ok = ReadFile(h, buffer, sizeof(buffer), &bytesRead, NULL);
+
+		if (!ok) {
+			std::cerr << "[UART] ReadFile error " << GetLastError() << "\n";
+			break;
+		}
+		if (bytesRead == 0) {
 			continue;
 		}
-		if (UnpackFrame(buffer, receivedBytes)) {
 
-			char senderIp[INET_ADDRSTRLEN] = {};
-			inet_ntop(AF_INET, &sender.sin_addr, senderIp, INET_ADDRSTRLEN);
-
-			//int16_t vel = (int16_t)(_data[0] | (_data[1] << 8));
-			//printf("Valid Frame from %s | Vel: %d | Payload: ", senderIp, vel);
-			//for (auto b : _data) printf("%02X ", b);
-			//printf("\n");
-		}
-		else {
-			std::cout << "Invalid packet received (Size: " << receivedBytes << ")" << std::endl;
-		}
+		UnpackFrame(buffer, (int)bytesRead, clientKey);
 	}
-
 	{
-		std::lock_guard<std::mutex> lock(g_sockMutex);
-		g_sock = INVALID_SOCKET;
+		std::lock_guard<std::mutex> lock(g_serialMutex);
+		g_hSerial = INVALID_HANDLE_VALUE;
 	}
-
-	closesocket(sock);
-	WSACleanup();
+	CloseHandle(h);
+	std::cout << "[UART] Closed " << port << "\n";
 }
 
 extern "C" TELEMETRY_API int startServer() {
@@ -198,7 +300,7 @@ extern "C" TELEMETRY_API int startServer() {
 	}
 	running = true;
 	udpThread = std::thread([&]() {
-		recvDatafromUDP(5000, running);
+		recvDataFromUART("COM5", 115200, running);
 		});
 	std::cout << "Server started.\n";
 	return 1;
@@ -210,16 +312,7 @@ extern "C" TELEMETRY_API int stopServer()
 		std::cout << "Server is already stopped.\n";
 		return 0;
 	}
-
 	running = false;
-	{
-		std::lock_guard<std::mutex> lock(g_sockMutex);
-		if (g_sock != INVALID_SOCKET) {
-			closesocket(g_sock);
-			g_sock = INVALID_SOCKET;
-		}
-	}
-
 	if (udpThread.joinable())
 		udpThread.join();
 	return 1;
@@ -238,4 +331,18 @@ extern "C" TELEMETRY_API int getLastData(unsigned char* buffer, int maxSize, uns
 	if (_version != nullptr)
 		*_version = version.load(std::memory_order_relaxed);
 	return size;
+}
+
+extern "C" TELEMETRY_API int getActiveClients(int timeoutMs)
+{
+	std::lock_guard<std::mutex> lock(clientsMutex);
+	ULONGLONG now = GetTickCount64();
+	int count = 0;
+	for (const auto& kv : _clientMap) {
+		const ClientContext& ctx = kv.second;
+		if ((now - ctx.lastSeenTick) <= (ULONGLONG)timeoutMs) {
+			count++;
+		}
+	}
+	return count;
 }

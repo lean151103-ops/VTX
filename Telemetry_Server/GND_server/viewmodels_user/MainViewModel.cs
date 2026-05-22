@@ -2,14 +2,16 @@ using GNDServer.Services_user;
 using SciChart.Charting.Model.DataSeries;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Collections.ObjectModel;
 
 namespace GNDServer.Viewmodels_user
 {
@@ -25,6 +27,9 @@ namespace GNDServer.Viewmodels_user
             return true;
         }
 
+        private StreamWriter _csvWriter;
+        private bool _csvHeaderWritten = false;
+
         private Brush GetBrakeBrush(double temp)
         {
             if (temp < 100) return Brushes.LightBlue;
@@ -33,6 +38,28 @@ namespace GNDServer.Viewmodels_user
             return Brushes.Red;
         }
 
+        private string _clientAddress = "";
+        public string ClientAddress
+        {
+            get => _clientAddress;
+            set => SetField(ref _clientAddress, value);
+        }
+
+        private DateTime? _lastUpdate;
+        public DateTime? LastUpdate
+        {
+            get => _lastUpdate;
+            set
+            {
+                _lastUpdate = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsOnline));
+            }
+        }
+
+        public bool IsOnline =>
+            LastUpdate.HasValue &&
+            (DateTime.Now - LastUpdate.Value).TotalMilliseconds <= 1000;
         public ObservableCollection<LapSummary> SummaryLaps { get; } = new ObservableCollection<LapSummary>();
 
         private LapSummary _selectedSummaryLap;
@@ -49,6 +76,13 @@ namespace GNDServer.Viewmodels_user
 
         private readonly TelemetryService _service;
         private int _xIndex = 0;
+
+        private double _ErrorRate;
+        public double ErrorRate
+        {
+            get => _ErrorRate;
+            set => SetField(ref _ErrorRate, value);
+        }
 
         private double _LapCounter;
         public double LapCounter
@@ -236,7 +270,9 @@ namespace GNDServer.Viewmodels_user
             get => _videoFrame;
             set { _videoFrame = value; OnPropertyChanged(nameof(VideoFrame)); }
         }
+
         private VideoService _videoService = new VideoService();
+        private readonly System.Windows.Threading.DispatcherTimer _statusTimer;
 
         public XyDataSeries<double, double> TrackBaseSeries { get; private set; }
         public XyDataSeries<double, double> CarMakersSeries { get; private set; }
@@ -277,19 +313,40 @@ namespace GNDServer.Viewmodels_user
             _service = new TelemetryService();
             _service.OnDataReceived += Service_OnDataReceived; // While receiving flag OnDataReceived, calling Service_OnDataReceived (+= is registing handler function)
             _service.Start();
+
+            string csvPath = Path.Combine(
+                @"D:\DATN_KY_SU\Logging",
+                $"telemetry_{DateTime.Now:ddMM_HHmmss}.csv");
+            _csvWriter = new StreamWriter(csvPath, append: false, encoding: System.Text.Encoding.UTF8);
+
             _videoService.FrameReceived += frame =>
             {
                 App.Current.Dispatcher.Invoke(() => VideoFrame = frame);
             };
             _videoService.Start(5005);
+            _statusTimer = new System.Windows.Threading.DispatcherTimer();
+            _statusTimer.Interval = TimeSpan.FromMilliseconds(500);
+            _statusTimer.Tick += (sender, e) =>
+            {
+                OnPropertyChanged(nameof(IsOnline));
+                if (!IsOnline)
+                {
+                    ClientAddress = "";
+                }
+            };
+            _statusTimer.Start();
         }
 
         //Collecting data and calling UI-Thread to update chart & UI 
         private void Service_OnDataReceived(TelemetryData data)
         {
+            WriteCsvRow(data);
             //Application.Current: app WPF current -> .Dispatcher: manage UI-Thread -> .BeginInvoke: making UI-thread running this function
-            Application.Current.Dispatcher.InvokeAsync(async () =>
+            Application.Current.Dispatcher.InvokeAsync(() =>
             {
+                ClientAddress = $"{ data.ip} : {data.port}";
+                LastUpdate = DateTime.Now;
+
                 // SciChart DataSeries
                 CarMakersSeries.Clear();
                 CarMakersSeries.Append(data.distance, 0);
@@ -312,6 +369,7 @@ namespace GNDServer.Viewmodels_user
                     FuelDataSeries.Append(0, data.fuel);
 
                 // XAML properties
+                ErrorRate = data.errorRate;
                 LapCounter = data.lapCounter;
                 LapTimeText = data.lapTime;
                 Distance = data.distance;
@@ -341,37 +399,38 @@ namespace GNDServer.Viewmodels_user
                 TireRLBrush = GetBrakeBrush(data.temp_tireRL);
                 TireRRTemp = data.temp_tireRR;
                 TireRRBrush = GetBrakeBrush(data.temp_tireRR);
-                FeedSummary(data.lapCounter, (uint)(data.lapTime * 1000),
-                data.distance, data.speed,
-                data.throttle, data.steering);
+                FeedSummary(data.lapCounter, (uint)(data.lapTime * 1000), data.distance, data.speed, data.throttle, data.steering);
                 _xIndex++;
             });
         }
 
         private LapSummary _currentLap = new LapSummary { LapNumber = 0 };
         private int _lastLapNumber = -1;
-
+        private uint _lastLapTimeMs = 0;
         private void FeedSummary(ushort lapCounter, uint lapTimeMs,
                                   ushort distance, ushort speed,
                                   ushort throttle, double steering)
         {
-            if (_lastLapNumber == -1) _lastLapNumber = lapCounter;
+            if (_lastLapNumber == -1)
+            {
+                _lastLapNumber = lapCounter;
+                _currentLap.LapNumber = lapCounter;
+            }
 
-            // Lap mới -> lưu lap cũ
             if (lapCounter != _lastLapNumber)
             {
-                _currentLap.LapTimeMs = lapTimeMs;
+                _currentLap.LapTimeMs = _lastLapTimeMs;
                 _currentLap.Calculate();
                 App.Current.Dispatcher.Invoke(() => SummaryLaps.Add(_currentLap));
 
                 _currentLap = new LapSummary { LapNumber = lapCounter };
                 _lastLapNumber = lapCounter;
             }
-
+            _lastLapTimeMs = lapTimeMs;
             _currentLap.Points.Add((distance, speed, throttle, steering));
         }
 
-        // ---- Gọi khi chọn lap ----
+        // ---- Is called when choosing a lap ----
         private void RefreshSummaryCharts()
         {
             if (_selectedSummaryLap == null) return;
@@ -393,6 +452,32 @@ namespace GNDServer.Viewmodels_user
             }
         }
 
+        // Logging data to CSV file
+        private void WriteCsvRow(TelemetryData data)
+        {
+            if (!_csvHeaderWritten)
+            {
+                _csvWriter.WriteLine(
+                    "clientKey,ip,port," +
+                    "lapCounter,lapTime,distance,speed,throttle,steering," +
+                    "rpm,gear,brake,fuel,imuX,imuY," +
+                    "temp_brakeFL,temp_brakeFR,temp_brakeRL,temp_brakeRR," +
+                    "temp_tireFL,temp_tireFR,temp_tireRL,temp_tireRR," +
+                    "Seq,totalExpected,totalLost,errorRate,packetDeltaMs");
+                _csvHeaderWritten = true;
+            }
+
+            _csvWriter.WriteLine(
+                $"{data.clientKey},{data.ip},{data.port}," +
+                $"{data.lapCounter},{data.lapTime:F3},{data.distance},{data.speed},{data.throttle},{data.steering:F4}," +
+                $"{data.rpm},{data.gear},{data.brake},{data.fuel},{data.imuX:F4},{data.imuY:F4}," +
+                $"{data.temp_brakeFL},{data.temp_brakeFR},{data.temp_brakeRL},{data.temp_brakeRR}," +
+                $"{data.temp_tireFL},{data.temp_tireFR},{data.temp_tireRL},{data.temp_tireRR}," +
+                $"{data.lastSeq},{data.totalExpected},{data.totalLost}," +
+                $"{data.errorRate:F6}, {data.packetDeltaMs}" );
+            _csvWriter.Flush();
+        }
+
         // If event OnPropertyChanged then updating the property to app (CallMemberName to don't need to pass propertyName)
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
@@ -409,6 +494,8 @@ namespace GNDServer.Viewmodels_user
                 _service.OnDataReceived -= Service_OnDataReceived;
                 _videoService.Stop();
             }
+            _csvWriter?.Flush();
+            _csvWriter?.Dispose();
         }
     }
 }
