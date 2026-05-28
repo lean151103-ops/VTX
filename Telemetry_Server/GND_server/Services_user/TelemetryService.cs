@@ -21,6 +21,7 @@ namespace GNDServer.Services_user
         public ushort speed;
         public ushort throttle;
         public float steering;
+        public ushort _elapsedMs;
         public ushort rpm;
         public ushort gear;
         public ushort brake;
@@ -137,7 +138,7 @@ namespace GNDServer.Services_user
                 {
                     _lastVersion = version;
                     TelemetryData data = Parse(buffer);
-                    //Console.WriteLine($"DEBUG DATA: Address={data.clientKey}__{data.ip}:{data.port} Lapcounter={data.lapCounter} | Laptime={data.lapTime} | Dist={data.distance} | Speed={data.speed} | Steering={data.steering} | Throttle={data.throttle} | IMUy={data.imuY}");
+                    Console.WriteLine($"DEBUG DATA: Address={data.clientKey}__{data.ip}:{data.port} Lapcounter={data.lapCounter} | Laptime={data.lapTime} | Dist={data.distance} | Speed={data.speed} | Steering={data.steering} | Throttle={data.throttle} | Elapsed={data._elapsedMs}");
                     OnDataReceived?.Invoke(data);  // When having flags trans data to handle ,which registed
                 }
                 Thread.Sleep(2);
@@ -154,7 +155,7 @@ namespace GNDServer.Services_user
         {
             byte keyLen = buffer[0];
             int offset = 1 + keyLen;
-            int tailOffset = offset + 14;
+            int tailOffset = offset + 18;
 
             string clientKey = Encoding.ASCII.GetString(buffer, 1, keyLen);
 
@@ -183,11 +184,12 @@ namespace GNDServer.Services_user
 
             // 1. Đọc dữ liệu gốc từ buffer
             ushort rawLapCounter = BitConverter.ToUInt16(buffer, offset + 0);
-            uint rawLapTime      = BitConverter.ToUInt32(buffer, offset + 2);
+            uint   rawLapTime    = BitConverter.ToUInt32(buffer, offset + 2);
             ushort rawDistance   = BitConverter.ToUInt16(buffer, offset + 6);
             ushort rawSpeed      = BitConverter.ToUInt16(buffer, offset + 8);
             ushort rawThrottle   = BitConverter.ToUInt16(buffer, offset + 10);
             ushort rawSteering   = BitConverter.ToUInt16(buffer, offset + 12);
+            ushort elapsedMs     = BitConverter.ToUInt16(buffer, offset + 14);
 
             uint  rawLastSeq        = BitConverter.ToUInt32(buffer, tailOffset);
             ulong rawTotalExpected  = BitConverter.ToUInt64(buffer, tailOffset + 4);
@@ -264,6 +266,7 @@ namespace GNDServer.Services_user
                 speed = rawSpeed,
                 throttle = rawThrottle,
                 steering = calculatedSteering,
+                _elapsedMs = elapsedMs,
 
                 // CÁC GIÁ TRỊ MÔ PHỎNG (Không đọc từ buffer nữa)
                 rpm = simulatedRpm,

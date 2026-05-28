@@ -11,6 +11,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <string>
+#include <queue>
 
 #define TELEMETRYNATIVE_EXPORTS
 #include "receiver.h"
@@ -26,6 +27,7 @@ static std::atomic<bool> running(false);
 static std::thread udpThread;
 static std::atomic<unsigned int> version(0);
 
+static std::queue<std::vector<uint8_t>> _dataQueue;
 static std::vector<uint8_t> _data;
 static std::mutex dataMutex;
 
@@ -52,6 +54,9 @@ struct ClientContext {
 
 static std::unordered_map<std::string, ClientContext> _clientMap; // key = "ip:port"
 static std::mutex clientsMutex;
+
+static LARGE_INTEGER g_timerFreq = { 0 };
+static bool g_timerInit = false;
 
 uint32_t crc32(const uint8_t data[], size_t length) {
 	uint32_t crc = 0xFFFFFFFF;
@@ -86,7 +91,7 @@ bool checkFrame(const std::vector<uint8_t>& recvFrame, size_t frameSize) {
 }
 
 bool UnpackFrame(const uint8_t recvData[], int len, const std::string& clientKey) {
-	std::lock_guard<std::mutex> lock(clientsMutex);
+	/*std::lock_guard<std::mutex> lock(clientsMutex);*/
 	ClientContext& ctx = _clientMap[clientKey];
 	ctx.lastSeenTick = GetTickCount64();
 	bool foundGoodFrame = false;
@@ -148,7 +153,7 @@ bool UnpackFrame(const uint8_t recvData[], int len, const std::string& clientKey
 				else {
 					ctx.totalExpected += 1;
 					ctx.totalLost += 1;
-					std::cout << "BADFRAME seq: " << seq << std::endl;
+					/*std::cout << "BADFRAME seq: " << seq << std::endl;*/
 				}
 				ctx.errorRate = (float)ctx.totalLost / (float)ctx.totalExpected;
 
@@ -158,58 +163,64 @@ bool UnpackFrame(const uint8_t recvData[], int len, const std::string& clientKey
 					ctx.version++;
 					ctx.lastSeenTick = GetTickCount64();
 
-					ULONGLONG nowTick = GetTickCount64();
+					LARGE_INTEGER nowTickQPC;
+					QueryPerformanceCounter(&nowTickQPC);
+
 					uint32_t deltaMs = 0;
 					if (ctx.lastPacketTick != 0) {
-						ULONGLONG diff = nowTick - ctx.lastPacketTick;
-						deltaMs = (diff > 0xFFFFFFFF) ? 0xFFFFFFFF : (uint32_t)diff;
+						ULONGLONG diffTicks = nowTickQPC.QuadPart - ctx.lastPacketTick;
+						deltaMs = (uint32_t)((diffTicks * 1000) / g_timerFreq.QuadPart);
 					}
-					ctx.lastPacketTick = nowTick;
+					ctx.lastPacketTick = nowTickQPC.QuadPart;
 
 					// Packaging _data: [keyLen][key][payload][errorRate 4 byte][deltaMs 4 byte]
-					_data.clear();
+					std::vector<uint8_t> packet;
 					uint8_t keyLen = (uint8_t)clientKey.size();
-					_data.push_back(keyLen);
-					_data.insert(_data.end(), clientKey.begin(), clientKey.end());
+					packet.push_back(keyLen);
+					packet.insert(packet.end(), clientKey.begin(), clientKey.end());
 
-					_data.insert(_data.end(), ctx.lastPayload.begin(), ctx.lastPayload.end());
+					packet.insert(packet.end(), ctx.lastPayload.begin(), ctx.lastPayload.end());
 
-					_data.push_back((ctx.lastSeq >> 0) & 0xFF);
-					_data.push_back((ctx.lastSeq >> 8) & 0xFF);
-					_data.push_back((ctx.lastSeq >> 16) & 0xFF);
-					_data.push_back((ctx.lastSeq >> 24) & 0xFF);
+					packet.push_back((ctx.lastSeq >> 0) & 0xFF);
+					packet.push_back((ctx.lastSeq >> 8) & 0xFF);
+					packet.push_back((ctx.lastSeq >> 16) & 0xFF);
+					packet.push_back((ctx.lastSeq >> 24) & 0xFF);
 
 					uint64_t totalExp = ctx.totalExpected;
-					_data.push_back((totalExp >> 0) & 0xFF);
-					_data.push_back((totalExp >> 8) & 0xFF);
-					_data.push_back((totalExp >> 16) & 0xFF);
-					_data.push_back((totalExp >> 24) & 0xFF);
-					_data.push_back((totalExp >> 32) & 0xFF);
-					_data.push_back((totalExp >> 40) & 0xFF);
-					_data.push_back((totalExp >> 48) & 0xFF);
-					_data.push_back((totalExp >> 56) & 0xFF);
+					packet.push_back((totalExp >> 0) & 0xFF);
+					packet.push_back((totalExp >> 8) & 0xFF);
+					packet.push_back((totalExp >> 16) & 0xFF);
+					packet.push_back((totalExp >> 24) & 0xFF);
+					packet.push_back((totalExp >> 32) & 0xFF);
+					packet.push_back((totalExp >> 40) & 0xFF);
+					packet.push_back((totalExp >> 48) & 0xFF);
+					packet.push_back((totalExp >> 56) & 0xFF);
 
 					uint64_t totalLost = ctx.totalLost;
-					_data.push_back((totalLost >> 0) & 0xFF);
-					_data.push_back((totalLost >> 8) & 0xFF);
-					_data.push_back((totalLost >> 16) & 0xFF);
-					_data.push_back((totalLost >> 24) & 0xFF);
-					_data.push_back((totalLost >> 32) & 0xFF);
-					_data.push_back((totalLost >> 40) & 0xFF);
-					_data.push_back((totalLost >> 48) & 0xFF);
-					_data.push_back((totalLost >> 56) & 0xFF);
+					packet.push_back((totalLost >> 0) & 0xFF);
+					packet.push_back((totalLost >> 8) & 0xFF);
+					packet.push_back((totalLost >> 16) & 0xFF);
+					packet.push_back((totalLost >> 24) & 0xFF);
+					packet.push_back((totalLost >> 32) & 0xFF);
+					packet.push_back((totalLost >> 40) & 0xFF);
+					packet.push_back((totalLost >> 48) & 0xFF);
+					packet.push_back((totalLost >> 56) & 0xFF);
 
 					// Append deltaMs (4 byte little-endian)
-					_data.push_back((deltaMs >> 0) & 0xFF);
-					_data.push_back((deltaMs >> 8) & 0xFF);
-					_data.push_back((deltaMs >> 16) & 0xFF);
-					_data.push_back((deltaMs >> 24) & 0xFF);
+					packet.push_back((deltaMs >> 0) & 0xFF);
+					packet.push_back((deltaMs >> 8) & 0xFF);
+					packet.push_back((deltaMs >> 16) & 0xFF);
+					packet.push_back((deltaMs >> 24) & 0xFF);
+
+					if (_dataQueue.size() > 500)   
+						_dataQueue.pop();
+					_dataQueue.push(packet);
 
 					version.fetch_add(1, std::memory_order_relaxed);
-					std::cout << "Received valid frame from " << clientKey
-						<< " | Payload: " << (int)ctx.length << " bytes"
-						<< " | ErrorRate: " << ctx.errorRate
-						<< " | DeltaMs: " << deltaMs << std::endl;   // ← LOG thêm
+					//std::cout << "Received valid frame from " << clientKey
+					//	<< " | Payload: " << (int)ctx.length << " bytes"
+					//	<< " | ErrorRate: " << ctx.errorRate
+					//	<< " | DeltaMs: " << deltaMs << std::endl;   // ← LOG thêm
 					foundGoodFrame = true;
 				}
 
@@ -298,6 +309,12 @@ extern "C" TELEMETRY_API int startServer() {
 		std::cout << "Server is already running..." << std::endl;
 		return 0; // Success
 	}
+
+	if (!g_timerInit) {
+		QueryPerformanceFrequency(&g_timerFreq);
+		g_timerInit = true;
+	}
+
 	running = true;
 	udpThread = std::thread([&]() {
 		recvDataFromUART("COM5", 115200, running);
@@ -322,11 +339,13 @@ extern "C" TELEMETRY_API int getLastData(unsigned char* buffer, int maxSize, uns
 {
 	std::lock_guard<std::mutex> lock(dataMutex);
 
-	if (_data.empty() || buffer == nullptr || maxSize <= 0)
+	if (_dataQueue.empty() || buffer == nullptr || maxSize <= 0)
 		return 0;
 
-	int size = (int)((_data.size() < (size_t)maxSize) ? _data.size() : (size_t)maxSize);
-	memcpy(buffer, _data.data(), size);
+	const auto& front = _dataQueue.front();
+	int size = (front.size() < (size_t)maxSize) ? (int)front.size() : maxSize;
+	memcpy(buffer, front.data(), size);
+	_dataQueue.pop();
 
 	if (_version != nullptr)
 		*_version = version.load(std::memory_order_relaxed);

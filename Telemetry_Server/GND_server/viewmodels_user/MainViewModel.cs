@@ -463,7 +463,7 @@ namespace GNDServer.Viewmodels_user
                     "rpm,gear,brake,fuel,imuX,imuY," +
                     "temp_brakeFL,temp_brakeFR,temp_brakeRL,temp_brakeRR," +
                     "temp_tireFL,temp_tireFR,temp_tireRL,temp_tireRR," +
-                    "Seq,totalExpected,totalLost,errorRate,packetDeltaMs");
+                    "Seq,totalExpected,totalLost,errorRate,packetDeltaMs,elapsed(Muys)");
                 _csvHeaderWritten = true;
             }
 
@@ -474,7 +474,7 @@ namespace GNDServer.Viewmodels_user
                 $"{data.temp_brakeFL},{data.temp_brakeFR},{data.temp_brakeRL},{data.temp_brakeRR}," +
                 $"{data.temp_tireFL},{data.temp_tireFR},{data.temp_tireRL},{data.temp_tireRR}," +
                 $"{data.lastSeq},{data.totalExpected},{data.totalLost}," +
-                $"{data.errorRate:F6}, {data.packetDeltaMs}" );
+                $"{data.errorRate:F6}, {data.packetDeltaMs},{data._elapsedMs}");
             _csvWriter.Flush();
         }
 
